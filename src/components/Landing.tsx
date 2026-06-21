@@ -497,8 +497,8 @@ export default function Landing({ onLogin }: LandingProps) {
           <div className="absolute w-[480px] h-[480px] right-[-160px] top-[-180px] rounded-full blur-[66px] animate-auroraC" style={{ background: 'radial-gradient(circle, rgba(47,179,137,.16), transparent 66%)', animationDuration: '28s' }} />
         </div>
 
-        <div className="relative z-10 max-w-[1240px] mx-auto px-8">
-          <div className="grid grid-cols-[1.4fr_1fr_1fr] gap-[48px] pb-[50px] border-b border-[#23262E]">
+        <div className="relative z-10 max-w-[1240px] mx-auto px-5 md:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr_1fr] gap-[36px] md:gap-[48px] pb-[50px] border-b border-[#23262E]">
             <div>
               <img src="/assets/liderium-white.png" alt="Liderium" className="h-[34px] w-auto mb-5" />
               <p className="text-[#8A929E] text-[15px] leading-[1.6] max-w-[340px] m-0">
@@ -520,15 +520,15 @@ export default function Landing({ onLogin }: LandingProps) {
                 </a>
               ))}
               <a href="mailto:lideriumteam@gmail.com"
-                className="flex items-center gap-3 bg-gradient-to-br from-[rgba(46,108,160,.16)] to-[rgba(47,179,137,.10)] border border-[rgba(155,200,240,.22)] rounded-[14px] px-[15px] py-[13px] text-white no-underline mt-1 hover:border-[rgba(155,200,240,.5)] transition">
+                className="flex items-center gap-3 bg-gradient-to-br from-[rgba(46,108,160,.16)] to-[rgba(47,179,137,.10)] border border-[rgba(155,200,240,.22)] rounded-[14px] px-[15px] py-[13px] text-white no-underline mt-1 hover:border-[rgba(155,200,240,.5)] transition w-full">
                 <span className="w-[38px] h-[38px] rounded-[11px] bg-[rgba(255,255,255,.06)] border border-[rgba(255,255,255,.1)] flex items-center justify-center flex-shrink-0">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6FB7F0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="M4 7l8 6 8-6" />
                   </svg>
                 </span>
-                <span>
+                <span className="min-w-0">
                   <span className="block text-[11px] font-bold text-[#8A929E] uppercase tracking-[0.06em]">Escríbenos por correo</span>
-                  <span className="block text-[15px] font-bold text-white mt-[2px]">lideriumteam@gmail.com</span>
+                  <span className="block text-[14px] font-bold text-white mt-[2px] truncate">lideriumteam@gmail.com</span>
                 </span>
               </a>
             </div>
@@ -553,7 +553,7 @@ export default function Landing({ onLogin }: LandingProps) {
             </div>
           </div>
 
-          <div className="flex justify-between flex-wrap gap-3 pt-[26px]">
+          <div className="flex flex-col md:flex-row md:justify-between gap-2 pt-[26px]">
             <span className="text-[#6A7280] text-[13.5px]">© 2026 Liderium · Consultora de contenido digital</span>
             <span className="text-[#6A7280] text-[13.5px]">Hecho con estrategia, no con suerte.</span>
           </div>
