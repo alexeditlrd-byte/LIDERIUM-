@@ -51,7 +51,7 @@ export default function Login({ onLanding, onPortal, onStaff }: LoginProps) {
   };
 
   return (
-    <div className="relative min-h-screen grid grid-cols-[1.05fr_1fr] bg-[#0B0C0F] text-white overflow-hidden" data-parallax>
+    <div className="relative min-h-screen bg-[#0B0C0F] text-white overflow-hidden md:grid md:grid-cols-[1.05fr_1fr]" data-parallax>
       {/* Background */}
       <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none z-0">
         <div className="absolute inset-0 bg-gradient-to-b from-[#1c2839] via-[#11131a] to-[#0B0C0F]" />
@@ -64,7 +64,7 @@ export default function Login({ onLanding, onPortal, onStaff }: LoginProps) {
       </div>
 
       {/* Left panel */}
-      <div className="relative z-10 px-[54px] py-[54px] flex flex-col justify-between">
+      <div className="hidden md:flex relative z-10 px-[54px] py-[54px] flex-col justify-between">
         <div className="flex items-center gap-[10px] cursor-pointer w-max hover:opacity-80 transition" onClick={onLanding}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#AEB4BE" strokeWidth="2.2"><path d="M19 12H5" /><path d="M11 18l-6-6 6-6" /></svg>
           <span className="text-[#AEB4BE] font-bold text-[14px]">Volver al sitio</span>
@@ -81,7 +81,7 @@ export default function Login({ onLanding, onPortal, onStaff }: LoginProps) {
       </div>
 
       {/* Right form */}
-      <div className="relative z-10 flex items-center justify-center px-10">
+      <div className="relative z-10 flex items-center justify-center px-5 py-10 md:px-10 min-h-screen md:min-h-0">
         <div className="relative w-full max-w-[400px] bg-gradient-to-br from-[rgba(40,52,72,.5)] to-[rgba(13,15,20,.42)] backdrop-blur-[28px] border border-[rgba(255,255,255,.14)] rounded-[24px] shadow-2xl px-[34px] py-[38px]">
           <div className="absolute top-0 left-[18px] right-[18px] h-1/2 bg-gradient-to-b from-[rgba(255,255,255,.08)] to-transparent rounded-[24px] pointer-events-none" />
 

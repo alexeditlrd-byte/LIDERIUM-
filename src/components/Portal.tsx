@@ -180,6 +180,7 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
   const [entregablesData, setEntregablesData] = useState<any[]>([]);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [clientAmount, setClientAmount] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const showToast = (text: string) => {
     setSuccessToast(text);
@@ -251,7 +252,7 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
   };
 
   return (
-    <div className="relative min-h-screen grid bg-[#F5F6F8] overflow-hidden" style={{ gridTemplateColumns: '256px 1fr' }}>
+    <div className="relative min-h-screen bg-[#F5F6F8] md:grid md:overflow-hidden" style={{ gridTemplateColumns: '256px 1fr' }}>
 
       {/* ── SUCCESS TOAST ── */}
       {successToast && (
@@ -285,8 +286,13 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
           </div>
         </div>
       )}
+      {/* Overlay mobile */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-[9997] md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* SIDEBAR */}
-      <aside className="z-20 bg-[#15171C] text-white flex flex-col px-4 py-[22px] sticky top-0 h-screen">
+      <aside className={`fixed inset-y-0 left-0 w-[256px] z-[9998] bg-[#15171C] text-white flex flex-col px-4 py-[22px] transition-transform duration-300 md:relative md:translate-x-0 md:z-20 md:sticky md:top-0 md:h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-2.5 pb-[22px]">
           <img src="/assets/liderium-white.png" alt="Liderium" className="h-[26px] w-auto" />
         </div>
@@ -333,25 +339,30 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
       {/* MAIN */}
       <div className="relative z-10 flex flex-col min-w-0">
         {/* Header */}
-        <header className="bg-[rgba(238,240,244,.82)] backdrop-blur-[12px] border-b border-[rgba(0,0,0,.06)] px-[38px] py-5 flex items-center justify-between sticky top-0 z-20">
-          <div>
-            <div className="text-[12.5px] font-bold text-[#8A929E] tracking-[0.04em]">Hola, {clientName} 👋</div>
-            <h1 className="font-grotesk font-bold text-[25px] tracking-[-0.02em] mt-0.5 text-[#15171C]">{titles[tab]}</h1>
+        <header className="bg-[rgba(238,240,244,.82)] backdrop-blur-[12px] border-b border-[rgba(0,0,0,.06)] px-4 md:px-[38px] py-4 md:py-5 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="md:hidden w-9 h-9 flex items-center justify-center rounded-[10px] bg-white border border-[#E2E5EA] text-[#3C434F]">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+            </button>
+            <div>
+              <div className="text-[12.5px] font-bold text-[#8A929E] tracking-[0.04em] hidden md:block">Hola, {clientName} 👋</div>
+              <h1 className="font-grotesk font-bold text-[18px] md:text-[25px] tracking-[-0.02em] text-[#15171C]">{titles[tab]}</h1>
+            </div>
           </div>
-          <div className="flex items-center gap-[14px]">
+          <div className="flex items-center gap-2 md:gap-[14px]">
             <a href="https://wa.me/51991403038" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-white border border-[#E2E5EA] text-[#15171C] font-bold text-[13.5px] px-4 py-2.5 rounded-[11px] no-underline hover:border-[#15171C] transition">
+              className="hidden md:flex items-center gap-2 bg-white border border-[#E2E5EA] text-[#15171C] font-bold text-[13.5px] px-4 py-2.5 rounded-[11px] no-underline hover:border-[#15171C] transition">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366">
                 <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2z" />
               </svg>
               Soporte
             </a>
-            <div className="w-[42px] h-[42px] rounded-[12px] bg-gradient-to-br from-[#2E6CA0] to-[#2FB389] flex items-center justify-center font-bold text-sm text-white">VA</div>
+            <div className="w-[38px] h-[38px] md:w-[42px] md:h-[42px] rounded-[12px] bg-gradient-to-br from-[#2E6CA0] to-[#2FB389] flex items-center justify-center font-bold text-sm text-white">{clientInitials}</div>
           </div>
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-[38px] py-[34px] overflow-auto">
+        <main className="flex-1 px-4 md:px-[38px] py-5 md:py-[34px] overflow-auto">
           {/* ── RESUMEN ── */}
           {tab === 'resumen' && (
             <div>

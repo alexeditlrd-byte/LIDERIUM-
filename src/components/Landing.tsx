@@ -129,7 +129,7 @@ export default function Landing({ onLogin }: LandingProps) {
           <div className="absolute inset-0" style={{ boxShadow: 'inset 0 -90px 120px -40px #0B0C0F, inset 0 60px 90px -50px rgba(0,0,0,.5)' }} />
         </div>
 
-        <div className="relative max-w-[1240px] mx-auto px-8 py-[104px] pb-[96px] grid grid-cols-[1.08fr_0.92fr] gap-[60px] items-center">
+        <div className="relative max-w-[1240px] mx-auto px-5 md:px-8 py-[64px] md:py-[104px] pb-[64px] md:pb-[96px] grid grid-cols-1 md:grid-cols-[1.08fr_0.92fr] gap-[40px] md:gap-[60px] items-center">
           {/* Left */}
           <div className="animate-fadeUp">
             {/* Badge */}
@@ -138,7 +138,7 @@ export default function Landing({ onLogin }: LandingProps) {
               <span className="text-[12.5px] font-bold tracking-[0.08em] uppercase text-[#C2C8D2]">Consultora de contenido digital</span>
             </div>
 
-            <h1 className="font-grotesk font-bold text-[60px] leading-[0.98] tracking-[-0.025em] mb-6 text-white">
+            <h1 className="font-grotesk font-bold text-[38px] md:text-[60px] leading-[0.98] tracking-[-0.025em] mb-6 text-white">
               Escala tus ventas con{' '}
               <span className="italic">100% contenido orgánico</span>{' '}
               y{' '}
@@ -359,7 +359,7 @@ export default function Landing({ onLogin }: LandingProps) {
             </p>
           </div>
 
-          <div className="grid grid-cols-3 gap-[18px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[18px]">
             {[
               {
                 title: 'Guiones que enganchan',
@@ -424,7 +424,7 @@ export default function Landing({ onLogin }: LandingProps) {
             </h2>
           </div>
 
-          <div className="grid grid-cols-4 gap-0">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
             {[
               { num: '01', title: 'Descubrimos', desc: 'Analizamos tu marca, tu audiencia y a tu competencia para definir el rumbo.' },
               { num: '02', title: 'Planeamos', desc: 'Creamos la estrategia y el calendario de contenido con pilares claros.' },
