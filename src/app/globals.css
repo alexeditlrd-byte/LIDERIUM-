@@ -1,0 +1,176 @@
+@import "tailwindcss";
+
+/* ============ KEYFRAMES ============ */
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes toastSlide {
+  from { opacity: 0; transform: translateX(28px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+@keyframes drawCheck {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes checkPop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.25); }
+}
+
+@keyframes introOverlay {
+  0% { opacity: 1; }
+  74% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
+@keyframes introLogo {
+  0% { opacity: 0; transform: scale(0.86) translateY(12px); filter: blur(7px); }
+  45% { opacity: 1; filter: blur(0); }
+  80% { opacity: 1; transform: scale(1) translateY(0); }
+  100% { opacity: 1; transform: scale(1.02) translateY(0); }
+}
+
+@keyframes introLine {
+  0% { width: 0; opacity: 0; }
+  45% { opacity: 1; }
+  100% { width: min(360px, 52vw); opacity: 0.85; }
+}
+
+@keyframes introFade {
+  0%, 55% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes transitIn {
+  0% { clip-path: circle(0% at 50% 50%); }
+  100% { clip-path: circle(150% at 50% 50%); }
+}
+
+@keyframes transitLogo {
+  0% { opacity: 0; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+  100% { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes auroraA {
+  0% { transform: translate(-8%, -4%) scale(1); }
+  50% { transform: translate(14%, 10%) scale(1.3); }
+  100% { transform: translate(-8%, -4%) scale(1); }
+}
+
+@keyframes auroraB {
+  0% { transform: translate(10%, 8%) scale(1.15); }
+  50% { transform: translate(-14%, -6%) scale(1.4); }
+  100% { transform: translate(10%, 8%) scale(1.15); }
+}
+
+@keyframes auroraC {
+  0% { transform: translate(0, 6%) scale(1.05); }
+  50% { transform: translate(-8%, -10%) scale(1.25); }
+  100% { transform: translate(0, 6%) scale(1.05); }
+}
+
+@keyframes beamSweep {
+  0% { transform: translateX(-70%) skewX(-14deg); opacity: 0; }
+  35% { opacity: 0.55; }
+  65% { opacity: 0.55; }
+  100% { transform: translateX(220%) skewX(-14deg); opacity: 0; }
+}
+
+@keyframes dustRise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  12% { opacity: 0.9; }
+  88% { opacity: 0.7; }
+  100% { transform: translate(26px, -150px); opacity: 0; }
+}
+
+@keyframes scanGrid {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 -52px; }
+}
+
+/* ============ TAILWIND V4 THEME ============ */
+@theme {
+  /* Colors */
+  --color-ink: #15171c;
+  --color-ink-darker: #0E0F12;
+  --color-steel: #2e6ca0;
+  --color-steel-light: #5FA0DA;
+  --color-mint: #2fb389;
+  --color-mint-dark: #1F9B6E;
+
+  /* Fonts — referencing Next.js font variables */
+  --font-grotesk: var(--font-space-grotesk), 'Space Grotesk', system-ui, sans-serif;
+
+  /* Animations */
+  --animate-floaty: floaty 6s ease-in-out infinite;
+  --animate-fadeUp: fadeUp 0.7s ease both;
+  --animate-pulseDot: pulseDot 2s ease-in-out infinite;
+  --animate-introOverlay: introOverlay 2.5s ease forwards;
+  --animate-introLogo: introLogo 1.7s cubic-bezier(0.2, 0.75, 0.2, 1) both;
+  --animate-introLine: introLine 1.8s ease 0.25s both;
+  --animate-introFade: introFade 2s ease both;
+  --animate-transitIn: transitIn 0.55s cubic-bezier(0.7, 0, 0.3, 1) forwards;
+  --animate-transitLogo: transitLogo 0.9s ease both;
+  --animate-auroraA: auroraA 16s ease-in-out infinite;
+  --animate-auroraB: auroraB 20s ease-in-out infinite;
+  --animate-auroraC: auroraC 22s ease-in-out infinite;
+  --animate-beamSweep: beamSweep 11s ease-in-out infinite;
+  --animate-scanGrid: scanGrid 9s linear infinite;
+  --animate-dustRise: dustRise 9s linear infinite;
+}
+
+/* ============ CUSTOM UTILITIES ============ */
+/* font-manrope: Next.js sets --font-manrope on html, we reference it here */
+.font-manrope {
+  font-family: var(--font-manrope, 'Manrope'), system-ui, sans-serif;
+}
+
+/* ============ BASE STYLES ============ */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: #15171c;
+  color: #ffffff;
+  font-family: var(--font-manrope, 'Manrope'), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: #2e6ca0;
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d7dae1;
+  border-radius: 8px;
+  border: 3px solid #fff;
+}
