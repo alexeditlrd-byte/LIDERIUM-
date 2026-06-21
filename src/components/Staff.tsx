@@ -285,7 +285,7 @@ export default function Staff({ onLogout }: StaffProps) {
         .catch(() => {});
     };
     load();
-    const interval = setInterval(load, 15000);
+    const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
   }, []);
   const [aiInput, setAiInput] = useState('');

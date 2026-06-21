@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Landing from '@/components/Landing';
-import Login, { ClientData } from '@/components/Login';
-import Portal from '@/components/Portal';
-import Staff from '@/components/Staff';
+import dynamic from 'next/dynamic';
 import { supabase } from '@/lib/supabase';
+import type { ClientData } from '@/components/Login';
+
+// Carga diferida — solo se descarga el componente cuando el usuario lo necesita
+const Landing = dynamic(() => import('@/components/Landing'));
+const Login   = dynamic(() => import('@/components/Login'));
+const Portal  = dynamic(() => import('@/components/Portal'));
+const Staff   = dynamic(() => import('@/components/Staff'));
 
 export default function Home() {
   const [view, setView] = useState<'landing' | 'login' | 'portal' | 'staff'>('landing');
