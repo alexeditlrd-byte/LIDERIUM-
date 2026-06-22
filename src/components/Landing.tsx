@@ -507,18 +507,13 @@ export default function Landing({ onLogin }: LandingProps) {
             </div>
             <div>
               <div className="font-black text-[13px] tracking-[0.08em] uppercase text-[#6A7280] mb-[18px]">Contacto</div>
-              {[
-                { href: 'https://wa.me/51991403038', label: '+51 991 403 038' },
-                { href: 'https://wa.me/51912839753', label: '+51 912 839 753' },
-              ].map((link) => (
-                <a key={link.href} href={link.href} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center gap-[10px] text-[#cfd4db] font-semibold text-[15px] no-underline mb-[13px] hover:text-mint transition">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
-                    <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2z" />
-                  </svg>
-                  {link.label}
-                </a>
-              ))}
+              <a href="https://wa.me/51980111" target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-[10px] text-[#cfd4db] font-semibold text-[15px] no-underline mb-[13px] hover:text-mint transition">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366">
+                  <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2z" />
+                </svg>
+                +51 980 111
+              </a>
               <a href="mailto:lideriumteam@gmail.com"
                 className="flex items-center gap-3 bg-gradient-to-br from-[rgba(46,108,160,.16)] to-[rgba(47,179,137,.10)] border border-[rgba(155,200,240,.22)] rounded-[14px] px-[15px] py-[13px] text-white no-underline mt-1 hover:border-[rgba(155,200,240,.5)] transition w-full">
                 <span className="w-[38px] h-[38px] rounded-[11px] bg-[rgba(255,255,255,.06)] border border-[rgba(255,255,255,.1)] flex items-center justify-center flex-shrink-0">
