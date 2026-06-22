@@ -350,7 +350,7 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
             </div>
           </div>
           <div className="flex items-center gap-2 md:gap-[14px]">
-            <a href="https://wa.me/51991403038" target="_blank" rel="noopener noreferrer"
+            <a href="https://wa.me/51980111" target="_blank" rel="noopener noreferrer"
               className="hidden md:flex items-center gap-2 bg-white border border-[#E2E5EA] text-[#15171C] font-bold text-[13.5px] px-4 py-2.5 rounded-[11px] no-underline hover:border-[#15171C] transition">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="#25D366">
                 <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2z" />
@@ -928,7 +928,7 @@ export default function Portal({ onLogout, clientData }: PortalProps) {
                 </svg>
                 <p className="text-[13.5px] text-[#6A7280] font-semibold leading-[1.6] m-0">
                   Si tienes alguna pregunta sobre tu facturación o necesitas un comprobante, escríbenos al{' '}
-                  <a href="https://wa.me/51991403038" target="_blank" rel="noopener noreferrer" className="text-steel font-bold no-underline hover:underline">
+                  <a href="https://wa.me/51980111" target="_blank" rel="noopener noreferrer" className="text-steel font-bold no-underline hover:underline">
                     WhatsApp de soporte
                   </a>{' '}
                   o por el chat de Mensajes.
