@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 
 interface LandingProps {
   onLogin: () => void;
@@ -9,6 +10,19 @@ interface LandingProps {
 export default function Landing({ onLogin }: LandingProps) {
   const [reel, setReel] = useState(0);
   const [reelHover, setReelHover] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [winW, setWinW] = useState(1200);
+
+  useEffect(() => {
+    const onResize = () => setWinW(window.innerWidth);
+    setWinW(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const isMob = winW < 640;
+  const cardW = isMob ? Math.min(300, Math.round(winW * 0.82)) : 300;
+  const cardH = Math.round(cardW * (533 / 300));
 
   const reels = [
     { src: 'https://www.instagram.com/reel/DXsi-voDCdT/embed/' },
@@ -26,23 +40,26 @@ export default function Landing({ onLogin }: LandingProps) {
     return () => clearInterval(interval);
   }, [reelHover, N]);
 
-  const getCardStyle = (i: number): React.CSSProperties => {
+  const getCardStyle = useCallback((i: number): React.CSSProperties => {
+    const mob = winW < 640;
+    const cW = mob ? Math.min(300, Math.round(winW * 0.82)) : 300;
+    const cH = Math.round(cW * (533 / 300));
     let off = ((i - reel) % N + N) % N;
     if (off > N / 2) off -= N;
     const ad = Math.abs(off);
     const front = off === 0;
-    const tx = off * 250;
-    const tz = -ad * 150;
-    const ry = -off * 38;
-    const sc = Math.max(0.62, 1 - ad * 0.15);
-    const op = ad > 2 ? 0 : 1 - ad * 0.28;
+    const tx = mob ? off * (cW + 16) : off * 250;
+    const tz = mob ? 0 : -ad * 150;
+    const ry = mob ? 0 : -off * 38;
+    const sc = mob ? 1 : Math.max(0.62, 1 - ad * 0.15);
+    const op = mob ? (front ? 1 : 0) : (ad > 2 ? 0 : 1 - ad * 0.28);
     const z = 100 - ad;
     return {
       position: 'absolute',
       top: 0,
       left: 0,
-      width: '300px',
-      height: '533px',
+      width: `${cW}px`,
+      height: `${cH}px`,
       borderRadius: '26px',
       overflow: 'hidden',
       background: '#0d0f14',
@@ -58,7 +75,7 @@ export default function Landing({ onLogin }: LandingProps) {
         : '0 30px 60px -34px rgba(0,0,0,.7)',
       cursor: front ? 'default' : 'pointer',
     };
-  };
+  }, [reel, N, winW]);
 
   const wa = 'https://wa.me/51991403038';
 
@@ -66,14 +83,14 @@ export default function Landing({ onLogin }: LandingProps) {
     <div className="relative overflow-hidden bg-[#0B0C0F] text-white">
       {/* NAV */}
       <header className="sticky top-0 z-50 bg-[rgba(11,12,15,0.72)] backdrop-blur-2xl border-b border-[rgba(255,255,255,.07)]">
-        <div className="max-w-[1240px] mx-auto px-8 h-[74px] flex items-center justify-between gap-6">
-          <img src="/assets/liderium-white.png" alt="Liderium" className="h-7 w-auto" />
+        <div className="max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8 h-[60px] sm:h-[74px] flex items-center justify-between gap-3">
+          <Image src="/assets/liderium-white.png" alt="Liderium" width={400} height={100} className="h-6 sm:h-7 w-auto" priority />
           <nav className="hidden md:flex gap-[34px] items-center">
             {[
               { href: '#casos', label: 'Resultados' },
               { href: '#servicios', label: 'Servicios' },
               { href: '#metodo', label: 'Cómo trabajamos' },
-              { href: '#casos', label: 'Casos reales' },
+              { href: '#portal', label: 'Portal' },
               { href: '#contacto', label: 'Contacto' },
             ].map((link) => (
               <a key={link.label} href={link.href} className="text-[14.5px] font-semibold text-[#C2C8D2] hover:text-white transition no-underline">
@@ -81,13 +98,44 @@ export default function Landing({ onLogin }: LandingProps) {
               </a>
             ))}
           </nav>
-          <button
-            onClick={onLogin}
-            className="flex items-center gap-2 border border-[rgba(255,255,255,.85)] bg-white text-[#15171C] font-bold text-[14px] px-5 py-3 rounded-full hover:bg-mint hover:border-mint hover:text-white transition cursor-pointer"
-          >
-            Acceso
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onLogin}
+              className="flex items-center gap-2 border border-[rgba(255,255,255,.85)] bg-white text-[#15171C] font-bold text-[13px] sm:text-[14px] px-4 sm:px-5 py-2 sm:py-3 rounded-full hover:bg-mint hover:border-mint hover:text-white transition cursor-pointer"
+            >
+              Acceso
+            </button>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="md:hidden flex flex-col justify-center items-center gap-[5px] w-10 h-10 cursor-pointer"
+              aria-label="Menú"
+            >
+              <span className={`w-5 h-0.5 bg-white block transition-all duration-300 origin-center ${menuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+              <span className={`w-5 h-0.5 bg-white block transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
+              <span className={`w-5 h-0.5 bg-white block transition-all duration-300 origin-center ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+            </button>
+          </div>
         </div>
+        {menuOpen && (
+          <nav className="md:hidden bg-[rgba(11,12,15,0.97)] backdrop-blur-2xl border-t border-[rgba(255,255,255,.07)] px-4 py-2 flex flex-col">
+            {[
+              { href: '#casos', label: 'Resultados' },
+              { href: '#servicios', label: 'Servicios' },
+              { href: '#metodo', label: 'Cómo trabajamos' },
+              { href: '#portal', label: 'Portal' },
+              { href: '#contacto', label: 'Contacto' },
+            ].map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                onClick={() => setMenuOpen(false)}
+                className="text-[15px] font-semibold text-[#C2C8D2] hover:text-white transition no-underline py-3 border-b border-[rgba(255,255,255,.06)] last:border-0"
+              >
+                {link.label}
+              </a>
+            ))}
+          </nav>
+        )}
       </header>
 
       {/* HERO */}
@@ -95,18 +143,8 @@ export default function Landing({ onLogin }: LandingProps) {
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 90% at 75% 18%, #1c2839 0%, #11131a 48%, #0B0C0F 100%)' }} />
-          <div
-            data-spot
-            className="absolute rounded-full opacity-0 transition-all"
-            style={{
-              width: '580px', height: '580px',
-              left: '62%', top: '30%', marginLeft: '-290px', marginTop: '-290px',
-              background: 'radial-gradient(circle, rgba(111,183,240,.22), rgba(47,179,137,.07) 46%, transparent 70%)',
-              filter: 'blur(10px)', mixBlendMode: 'screen',
-            }}
-          />
           {/* Aurora orbs */}
-          <div className="absolute inset-0 will-change-transform" style={{ transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', transform: 'translate(calc(var(--px,0)*38px),calc(var(--py,0)*32px))' }}>
+          <div className="absolute inset-0">
             <div className="absolute w-[760px] h-[760px] left-[-120px] top-[-220px] rounded-full blur-[46px] animate-auroraA" style={{ background: 'radial-gradient(circle, rgba(46,108,160,.55), transparent 62%)' }} />
             <div className="absolute w-[680px] h-[680px] right-[-140px] top-[-120px] rounded-full blur-[50px] animate-auroraB" style={{ background: 'radial-gradient(circle, rgba(47,179,137,.42), transparent 64%)' }} />
             <div className="absolute w-[560px] h-[560px] left-[38%] bottom-[-260px] rounded-full blur-[54px] animate-auroraC" style={{ background: 'radial-gradient(circle, rgba(46,108,160,.34), transparent 66%)' }} />
@@ -116,20 +154,18 @@ export default function Landing({ onLogin }: LandingProps) {
             backgroundImage: 'linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px)',
             backgroundSize: '52px 52px',
             maskImage: 'radial-gradient(120% 80% at 60% 30%, #000 30%, transparent 78%)',
-            transition: 'transform .45s ease-out',
-            transform: 'translate(calc(var(--px,0)*-22px), calc(var(--py,0)*-18px))',
           }} />
           {/* Beam */}
           <div className="absolute top-0 bottom-0 left-0 w-[46%] blur-[6px] animate-beamSweep"
             style={{ background: 'linear-gradient(90deg,transparent,rgba(155,200,240,.16),transparent)' }} />
           {/* Logo watermark */}
-          <img src="/assets/liderium-white.png" alt="" aria-hidden="true"
+          <Image src="/assets/liderium-white.png" alt="" aria-hidden="true" width={720} height={180}
             className="absolute pointer-events-none select-none opacity-[0.05]"
-            style={{ right: '-70px', top: '54px', width: '720px', transition: 'transform .55s ease-out', transform: 'translate(calc(var(--px,0)*26px), calc(var(--py,0)*20px))' }} />
+            style={{ right: '-70px', top: '54px', width: '720px', height: 'auto' }} />
           <div className="absolute inset-0" style={{ boxShadow: 'inset 0 -90px 120px -40px #0B0C0F, inset 0 60px 90px -50px rgba(0,0,0,.5)' }} />
         </div>
 
-        <div className="relative max-w-[1240px] mx-auto px-5 md:px-8 py-[64px] md:py-[104px] pb-[64px] md:pb-[96px] grid grid-cols-1 md:grid-cols-[1.08fr_0.92fr] gap-[40px] md:gap-[60px] items-center">
+        <div className="relative max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8 py-10 sm:py-[64px] md:py-[104px] pb-10 sm:pb-[64px] md:pb-[96px] grid grid-cols-1 md:grid-cols-[1.08fr_0.92fr] gap-8 md:gap-[60px] items-center">
           {/* Left */}
           <div className="animate-fadeUp">
             {/* Badge */}
@@ -138,7 +174,7 @@ export default function Landing({ onLogin }: LandingProps) {
               <span className="text-[12.5px] font-bold tracking-[0.08em] uppercase text-[#C2C8D2]">Consultora de contenido digital</span>
             </div>
 
-            <h1 className="font-grotesk font-bold text-[38px] md:text-[60px] leading-[0.98] tracking-[-0.025em] mb-6 text-white">
+            <h1 className="font-grotesk font-bold text-[28px] sm:text-[38px] md:text-[60px] leading-[1.05] md:leading-[0.98] tracking-[-0.025em] mb-4 sm:mb-6 text-white">
               Escala tus ventas con{' '}
               <span className="italic">100% contenido orgánico</span>{' '}
               y{' '}
@@ -150,17 +186,17 @@ export default function Landing({ onLogin }: LandingProps) {
               </span>
             </h1>
 
-            <p className="text-[18.5px] leading-[1.6] text-[#AEB4BE] max-w-[520px] mb-9">
+            <p className="text-[15px] sm:text-[17px] md:text-[18.5px] leading-[1.6] text-[#AEB4BE] max-w-[520px] mb-6 sm:mb-9">
               Creamos la estrategia y los guiones de tu contenido para que crezca solo. Tú ves cada video, tu estrategia y tus métricas en un mismo lugar.
             </p>
 
-            <div className="flex gap-[14px] flex-wrap items-center mb-[40px]">
+            <div className="flex gap-3 sm:gap-[14px] flex-wrap items-center mb-8 sm:mb-[40px]">
               <button
                 onClick={onLogin}
-                className="flex items-center gap-[9px] bg-white text-[#15171C] border-none font-bold text-[15.5px] px-7 py-4 rounded-full cursor-pointer shadow-[0_12px_34px_-10px_rgba(0,0,0,.6)] hover:bg-mint hover:text-white transition"
+                className="flex items-center gap-[9px] bg-white text-[#15171C] border-none font-bold text-[14px] sm:text-[15.5px] px-5 sm:px-7 py-3 sm:py-4 rounded-full cursor-pointer shadow-[0_12px_34px_-10px_rgba(0,0,0,.6)] hover:bg-mint hover:text-white transition"
               >
                 Quiero escalar mis ventas
-                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M5 12h14" /><path d="M13 6l6 6-6 6" />
                 </svg>
               </button>
@@ -168,7 +204,7 @@ export default function Landing({ onLogin }: LandingProps) {
                 href={wa}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-[9px] bg-[rgba(255,255,255,.06)] text-white border border-[rgba(255,255,255,.22)] font-bold text-[15.5px] px-6 py-4 rounded-full cursor-pointer no-underline hover:border-white hover:bg-[rgba(255,255,255,.12)] transition"
+                className="flex items-center gap-[9px] bg-[rgba(255,255,255,.06)] text-white border border-[rgba(255,255,255,.22)] font-bold text-[14px] sm:text-[15.5px] px-5 sm:px-6 py-3 sm:py-4 rounded-full cursor-pointer no-underline hover:border-white hover:bg-[rgba(255,255,255,.12)] transition"
               >
                 <svg width="17" height="17" viewBox="0 0 24 24" fill="#25D366">
                   <path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.8-1.3A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.1l-.3-.2-2.8.7.8-2.7-.2-.3A8 8 0 1 1 12 20zm4.4-6c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.8 1-.3.1-.5 0a6.5 6.5 0 0 1-3.2-2.8c-.2-.4.2-.4.6-1.2.1-.2 0-.3 0-.5s-.5-1.3-.7-1.7-.4-.4-.5-.4h-.5a1 1 0 0 0-.7.3c-.3.3-1 .9-1 2.3s1 2.7 1.1 2.9 2 3.1 5 4.3c1.8.8 2.5.8 3.4.7.5-.1 1.4-.6 1.6-1.1s.2-1 .2-1.1z" />
@@ -243,27 +279,27 @@ export default function Landing({ onLogin }: LandingProps) {
       </section>
 
       {/* CASOS / REELS */}
-      <section id="casos" data-parallax className="relative overflow-hidden bg-[#0B0C0F] py-[96px]">
+      <section id="casos" data-parallax className="relative overflow-hidden bg-[#0B0C0F] py-16 md:py-[96px]">
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 80% at 50% 0%, #16202e 0%, #0d1016 46%, #0B0C0F 100%)' }} />
-          <div className="absolute inset-0 will-change-transform" style={{ transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', transform: 'translate(calc(var(--px,0)*30px),calc(var(--py,0)*26px))' }}>
+          <div className="absolute inset-0">
             <div className="absolute w-[640px] h-[640px] left-[-160px] top-[-160px] rounded-full blur-[52px] animate-auroraA" style={{ background: 'radial-gradient(circle, rgba(46,108,160,.34), transparent 64%)', animationDuration: '18s' }} />
             <div className="absolute w-[560px] h-[560px] right-[-160px] bottom-[-220px] rounded-full blur-[56px] animate-auroraB" style={{ background: 'radial-gradient(circle, rgba(47,179,137,.26), transparent 66%)', animationDuration: '23s' }} />
           </div>
         </div>
 
-        <div className="relative z-10 max-w-[1240px] mx-auto px-8">
-          <div className="flex items-end justify-between gap-[30px] mb-[44px] flex-wrap">
+        <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8">
+          <div className="flex items-end justify-between gap-[30px] mb-8 md:mb-[44px] flex-wrap">
             <div>
-              <h2 className="font-grotesk font-bold text-[44px] leading-[1.04] tracking-[-0.025em] mb-[14px] text-white">
+              <h2 className="font-grotesk font-bold text-[28px] sm:text-[36px] md:text-[44px] leading-[1.04] tracking-[-0.025em] mb-[10px] md:mb-[14px] text-white">
                 Contenido que se vuelve viral
               </h2>
-              <p className="text-[17px] leading-[1.6] text-[#9097A2] max-w-[520px]">
+              <p className="text-[15px] md:text-[17px] leading-[1.6] text-[#9097A2] max-w-[520px]">
                 Reels que guionizamos y planeamos para nuestros clientes. El carrusel gira solo — o muévelo tú con las flechas para ver cada video.
               </p>
             </div>
             {/* Client card */}
-            <div className="flex items-center gap-[14px] bg-[rgba(255,255,255,.04)] border border-[rgba(255,255,255,.1)] rounded-[18px] px-5 py-4 backdrop-blur-2xl">
+            <div className="flex items-center gap-[14px] bg-[rgba(255,255,255,.04)] border border-[rgba(255,255,255,.1)] rounded-[18px] px-5 py-4 backdrop-blur-2xl w-full sm:w-auto">
               <div className="w-[54px] h-[54px] rounded-full bg-gradient-to-br from-[#2E6CA0] to-[#2FB389] flex items-center justify-center font-black text-[18px] text-white flex-shrink-0">SN</div>
               <div>
                 <div className="font-black text-[15.5px] text-white">santiago.estrategias</div>
@@ -280,39 +316,43 @@ export default function Landing({ onLogin }: LandingProps) {
           <div
             onMouseEnter={() => setReelHover(true)}
             onMouseLeave={() => setReelHover(false)}
-            className="relative flex items-center justify-center h-[600px]"
-            style={{ perspective: '1500px' }}
+            className="relative flex items-center justify-center"
+            style={{ perspective: '1500px', height: `${cardH + 60}px` }}
           >
             <button
               onClick={() => setReel((p) => (p - 1 + N) % N)}
               aria-label="Anterior"
-              className="absolute left-0 top-1/2 -translate-y-1/2 z-[5] w-[52px] h-[52px] rounded-full border border-[rgba(255,255,255,.16)] bg-[rgba(255,255,255,.06)] backdrop-blur-2xl text-white cursor-pointer flex items-center justify-center hover:bg-[rgba(255,255,255,.14)] hover:border-[rgba(255,255,255,.4)] transition"
+              className="absolute left-1 sm:left-0 top-1/2 -translate-y-1/2 z-[5] w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border border-[rgba(255,255,255,.16)] bg-[rgba(255,255,255,.06)] backdrop-blur-2xl text-white cursor-pointer flex items-center justify-center hover:bg-[rgba(255,255,255,.14)] hover:border-[rgba(255,255,255,.4)] transition"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M15 18l-6-6 6-6" /></svg>
             </button>
 
-            <div className="relative w-[300px] h-[533px]" style={{ transformStyle: 'preserve-3d' }}>
-              {reels.map((r, i) => (
-                <div key={i} style={getCardStyle(i)} onClick={() => !getCardStyle(i).cursor?.includes('default') && setReel(i)}>
-                  <iframe
-                    src={r.src}
-                    loading="lazy"
-                    scrolling="no"
-                    allowTransparency
-                    allowFullScreen
-                    style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
-                  />
-                  {i !== reel && <div className="absolute inset-0 cursor-pointer" onClick={() => setReel(i)} />}
-                </div>
-              ))}
+            <div className="relative" style={{ width: `${cardW}px`, height: `${cardH}px`, transformStyle: 'preserve-3d' }}>
+              {reels.map((r, i) => {
+                const style = getCardStyle(i);
+                const isFront = i === reel;
+                return (
+                  <div key={i} style={style} onClick={() => !isFront && setReel(i)}>
+                    <iframe
+                      src={r.src}
+                      loading="lazy"
+                      scrolling="no"
+                      allowTransparency
+                      allowFullScreen
+                      style={{ width: '100%', height: '100%', border: 0, display: 'block' }}
+                    />
+                    {!isFront && <div className="absolute inset-0 cursor-pointer" onClick={() => setReel(i)} />}
+                  </div>
+                );
+              })}
             </div>
 
             <button
               onClick={() => setReel((p) => (p + 1) % N)}
               aria-label="Siguiente"
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-[5] w-[52px] h-[52px] rounded-full border border-[rgba(255,255,255,.16)] bg-[rgba(255,255,255,.06)] backdrop-blur-2xl text-white cursor-pointer flex items-center justify-center hover:bg-[rgba(255,255,255,.14)] hover:border-[rgba(255,255,255,.4)] transition"
+              className="absolute right-1 sm:right-0 top-1/2 -translate-y-1/2 z-[5] w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border border-[rgba(255,255,255,.16)] bg-[rgba(255,255,255,.06)] backdrop-blur-2xl text-white cursor-pointer flex items-center justify-center hover:bg-[rgba(255,255,255,.14)] hover:border-[rgba(255,255,255,.4)] transition"
             >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>
             </button>
           </div>
 
@@ -338,23 +378,23 @@ export default function Landing({ onLogin }: LandingProps) {
       </section>
 
       {/* SERVICES */}
-      <section id="servicios" data-parallax className="relative overflow-hidden bg-[#101218] text-white py-[90px]">
+      <section id="servicios" data-parallax className="relative overflow-hidden bg-[#101218] text-white py-14 md:py-[90px]">
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute inset-0 will-change-transform" style={{ transition: 'transform .5s cubic-bezier(.2,.7,.2,1)', transform: 'translate(calc(var(--px,0)*26px),calc(var(--py,0)*22px))' }}>
+          <div className="absolute inset-0">
             <div className="absolute w-[620px] h-[620px] left-[-160px] top-[-160px] rounded-full blur-[60px] animate-auroraA" style={{ background: 'radial-gradient(circle, rgba(46,108,160,.30), transparent 64%)', animationDuration: '19s' }} />
             <div className="absolute w-[560px] h-[560px] right-[-180px] bottom-[-200px] rounded-full blur-[64px] animate-auroraB" style={{ background: 'radial-gradient(circle, rgba(47,179,137,.22), transparent 66%)', animationDuration: '24s' }} />
           </div>
         </div>
 
-        <div className="relative z-10 max-w-[1240px] mx-auto px-8">
-          <div className="flex items-end justify-between gap-[30px] mb-[48px] flex-wrap">
+        <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8">
+          <div className="flex items-end justify-between gap-[30px] mb-8 md:mb-[48px] flex-wrap">
             <div>
               <div className="text-[12.5px] font-black tracking-[0.12em] uppercase text-mint mb-[14px]">Lo que hacemos por ti</div>
-              <h2 className="font-grotesk font-bold text-[42px] leading-[1.05] tracking-[-0.025em] max-w-[560px]">
+              <h2 className="font-grotesk font-bold text-[28px] sm:text-[36px] md:text-[42px] leading-[1.05] tracking-[-0.025em] max-w-[560px]">
                 Contenido que se ve premium y vende solo
               </h2>
             </div>
-            <p className="text-[#9097A2] text-[16px] leading-[1.6] max-w-[330px]">
+            <p className="text-[#9097A2] text-[15px] md:text-[16px] leading-[1.6] max-w-[330px]">
               Tú nos cuentas tu marca y nosotros nos encargamos de la estrategia, los guiones y la medición — con datos que respaldan cada decisión.
             </p>
           </div>
@@ -406,8 +446,8 @@ export default function Landing({ onLogin }: LandingProps) {
                 <div className="w-[50px] h-[50px] rounded-[14px] flex items-center justify-center mb-[22px]" style={{ background: s.iconBg }}>
                   {s.icon}
                 </div>
-                <h3 className="font-grotesk font-semibold text-[21px] mb-[10px]">{s.title}</h3>
-                <p className="text-[#9097A2] text-[15px] leading-[1.6] m-0">{s.desc}</p>
+                <h3 className="font-grotesk font-semibold text-[18px] sm:text-[21px] mb-[10px]">{s.title}</h3>
+                <p className="text-[#9097A2] text-[14px] sm:text-[15px] leading-[1.6] m-0">{s.desc}</p>
               </div>
             ))}
           </div>
@@ -415,26 +455,26 @@ export default function Landing({ onLogin }: LandingProps) {
       </section>
 
       {/* METHOD */}
-      <section id="metodo" data-parallax className="relative overflow-hidden bg-[#0B0C0F] py-[96px]">
-        <div className="relative z-10 max-w-[1240px] mx-auto px-8">
-          <div className="text-center mb-[54px]">
+      <section id="metodo" data-parallax className="relative overflow-hidden bg-[#0B0C0F] py-14 md:py-[96px]">
+        <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8">
+          <div className="text-center mb-8 md:mb-[54px]">
             <div className="text-[12.5px] font-black tracking-[0.12em] uppercase text-[#5FD3A8] mb-[14px]">Cómo trabajamos</div>
-            <h2 className="font-grotesk font-bold text-[42px] leading-[1.05] tracking-[-0.025em] text-white">
+            <h2 className="font-grotesk font-bold text-[28px] sm:text-[36px] md:text-[42px] leading-[1.05] tracking-[-0.025em] text-white">
               Cuatro pasos, cero complicaciones
             </h2>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 md:gap-0">
             {[
               { num: '01', title: 'Descubrimos', desc: 'Analizamos tu marca, tu audiencia y a tu competencia para definir el rumbo.' },
               { num: '02', title: 'Planeamos', desc: 'Creamos la estrategia y el calendario de contenido con pilares claros.' },
               { num: '03', title: 'Guionizamos', desc: 'Escribimos los guiones de cada pieza con ganchos y estructura pensada para volverse viral.' },
               { num: '04', title: 'Medimos', desc: 'Reportamos resultados en tu portal y optimizamos mes a mes.' },
             ].map((step, i) => (
-              <div key={i} className="px-[26px]" style={{ borderRight: i < 3 ? '1px solid rgba(255,255,255,.09)' : 'none' }}>
+              <div key={i} className="px-5 md:px-[26px] border-b border-[rgba(255,255,255,.09)] last:border-b-0 md:border-b-0 pb-5 md:pb-0" style={{ borderRight: winW >= 768 && i < 3 ? '1px solid rgba(255,255,255,.09)' : undefined }}>
                 <div className="font-grotesk font-bold text-[15px] text-[#5FA0DA] mb-[14px]">{step.num}</div>
-                <h3 className="font-grotesk font-semibold text-[20px] mb-[9px] text-white">{step.title}</h3>
-                <p className="text-[#9097A2] text-[14.5px] leading-[1.6] m-0">{step.desc}</p>
+                <h3 className="font-grotesk font-semibold text-[18px] sm:text-[20px] mb-[9px] text-white">{step.title}</h3>
+                <p className="text-[#9097A2] text-[14px] sm:text-[14.5px] leading-[1.6] m-0">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -451,26 +491,26 @@ export default function Landing({ onLogin }: LandingProps) {
             filter: 'blur(6px)',
             animationDuration: '13s',
           }} />
-          <img src="/assets/liderium-white.png" alt="" aria-hidden="true"
+          <Image src="/assets/liderium-white.png" alt="" aria-hidden="true" width={600} height={150}
             className="absolute opacity-[0.06] pointer-events-none select-none"
-            style={{ right: '-100px', bottom: '-60px', width: '600px' }} />
+            style={{ right: '-100px', bottom: '-60px', width: '600px', height: 'auto' }} />
         </div>
 
-        <div className="relative z-10 max-w-[1240px] mx-auto px-8 py-[72px]">
+        <div className="relative z-10 max-w-[1240px] mx-auto px-4 sm:px-6 md:px-8 py-12 md:py-[72px]">
           <div className="flex items-center gap-[10px] mb-5">
             <span className="text-[11.5px] font-black tracking-[0.12em] uppercase text-[#6FB7F0] bg-[rgba(111,183,240,.1)] border border-[rgba(111,183,240,.2)] px-3 py-[5px] rounded-full">
               Acceso exclusivo para clientes
             </span>
           </div>
-          <h2 className="font-grotesk font-bold text-[44px] leading-[1.04] tracking-[-0.025em] text-white mb-4 max-w-[700px]">
+          <h2 className="font-grotesk font-bold text-[28px] sm:text-[36px] md:text-[44px] leading-[1.1] md:leading-[1.04] tracking-[-0.025em] text-white mb-4 max-w-[700px]">
             Tu portal privado, ordenado y siempre actualizado
           </h2>
-          <p className="text-[17px] leading-[1.6] text-[#AEB4BE] max-w-[560px] mb-[28px]">
+          <p className="text-[15px] md:text-[17px] leading-[1.6] text-[#AEB4BE] max-w-[560px] mb-6 md:mb-[28px]">
             Tú ves tu estrategia, tus métricas de crecimiento y los consejos del equipo — todo en un mismo lugar, en tiempo real.
           </p>
-          <div className="flex gap-[24px] flex-wrap mb-[36px]">
+          <div className="flex gap-3 sm:gap-[24px] flex-wrap mb-6 md:mb-[36px]">
             {['Videos editados', 'Estrategia de contenido', 'Métricas en vivo', 'Consejos del equipo'].map((c) => (
-              <div key={c} className="flex items-center gap-[8px] text-[#cfd4db] font-semibold text-[14.5px]">
+              <div key={c} className="flex items-center gap-[8px] text-[#cfd4db] font-semibold text-[13.5px] sm:text-[14.5px]">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2FB389" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 6L9 17l-5-5" />
                 </svg>
@@ -480,7 +520,7 @@ export default function Landing({ onLogin }: LandingProps) {
           </div>
           <button
             onClick={onLogin}
-            className="flex items-center gap-[9px] bg-white text-[#15171C] border-none font-bold text-[15.5px] px-7 py-4 rounded-full cursor-pointer hover:bg-mint hover:text-white transition"
+            className="flex items-center gap-[9px] bg-white text-[#15171C] border-none font-bold text-[14px] sm:text-[15.5px] px-5 sm:px-7 py-3 sm:py-4 rounded-full cursor-pointer hover:bg-mint hover:text-white transition"
           >
             Acceder a mi portal
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
@@ -491,7 +531,7 @@ export default function Landing({ onLogin }: LandingProps) {
       </section>
 
       {/* FOOTER / CONTACTO */}
-      <footer id="contacto" className="relative overflow-hidden bg-[#0F1115] text-white py-[72px]">
+      <footer id="contacto" className="relative overflow-hidden bg-[#0F1115] text-white py-12 md:py-[72px]">
         <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute w-[560px] h-[560px] left-[-160px] bottom-[-220px] rounded-full blur-[64px] animate-auroraA" style={{ background: 'radial-gradient(circle, rgba(46,108,160,.24), transparent 66%)', animationDuration: '23s' }} />
           <div className="absolute w-[480px] h-[480px] right-[-160px] top-[-180px] rounded-full blur-[66px] animate-auroraC" style={{ background: 'radial-gradient(circle, rgba(47,179,137,.16), transparent 66%)', animationDuration: '28s' }} />
@@ -500,7 +540,7 @@ export default function Landing({ onLogin }: LandingProps) {
         <div className="relative z-10 max-w-[1240px] mx-auto px-5 md:px-8">
           <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr_1fr] gap-[36px] md:gap-[48px] pb-[50px] border-b border-[#23262E]">
             <div>
-              <img src="/assets/liderium-white.png" alt="Liderium" className="h-[34px] w-auto mb-5" />
+              <Image src="/assets/liderium-white.png" alt="Liderium" width={400} height={100} className="h-[34px] w-auto mb-5" />
               <p className="text-[#8A929E] text-[15px] leading-[1.6] max-w-[340px] m-0">
                 Consultora de contenido digital. Hacemos crecer marcas con contenido orgánico y estrategias virales.
               </p>

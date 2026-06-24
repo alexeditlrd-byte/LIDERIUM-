@@ -51,23 +51,6 @@ export default function Home() {
     return () => clearTimeout(t);
   }, []);
 
-  // Parallax
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      document.querySelectorAll('[data-parallax]').forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        if (e.clientY > rect.bottom || e.clientY < rect.top) return;
-        const px = (e.clientX - rect.left) / rect.width - 0.5;
-        const py = (e.clientY - rect.top) / rect.height - 0.5;
-        (el as HTMLElement).style.setProperty('--px', px.toFixed(3));
-        (el as HTMLElement).style.setProperty('--py', py.toFixed(3));
-        const spot = el.querySelector('[data-spot]') as HTMLElement;
-        if (spot) { spot.style.left = (e.clientX - rect.left) + 'px'; spot.style.top = (e.clientY - rect.top) + 'px'; spot.style.opacity = '1'; }
-      });
-    };
-    window.addEventListener('mousemove', handleMouseMove, { passive: true });
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   return (
     <div className="relative min-h-screen">
