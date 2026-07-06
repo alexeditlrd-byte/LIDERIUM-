@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
+import { supabase } from '@/lib/supabase';
 
 interface StaffProps {
   onLogout: () => void;
@@ -116,7 +118,18 @@ function formatMeetDate(iso: string) {
 
 export default function Staff({ onLogout }: StaffProps) {
   const [tab, setTab] = useState<StaffTab>('clientes');
+  const [staffName, setStaffName] = useState('Equipo · Liderium');
+  const [staffInitials, setStaffInitials] = useState('LI');
   const [dbClients, setDbClients] = useState<any[]>([]);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Equipo';
+      setStaffName(`${name} · Liderium`);
+      setStaffInitials(name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
+    });
+  }, []);
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', plan: 'Crecimiento' });
   const [genPass, setGenPass] = useState('');
@@ -374,7 +387,7 @@ export default function Staff({ onLogout }: StaffProps) {
       {/* SIDEBAR */}
       <aside className={`fixed inset-y-0 left-0 w-[256px] z-[9998] bg-[#15171C] text-white flex flex-col px-4 py-[22px] transition-transform duration-300 md:relative md:translate-x-0 md:z-20 md:sticky md:top-0 md:h-screen ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="px-2.5 pb-2 mb-2">
-          <img src="/assets/liderium-white.png" alt="Liderium" className="h-[26px] w-auto" />
+          <Image src="/assets/liderium-white.png" alt="Liderium" width={400} height={100} className="h-[26px] w-auto" />
         </div>
         <div className="px-2.5 pb-[18px]">
           <span className="text-[11px] font-black tracking-[0.1em] uppercase text-mint">Panel interno</span>
@@ -399,9 +412,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
         <div className="pt-[18px] border-t border-[#262A33]">
           <div className="flex items-center gap-3 px-2.5 py-2 mb-2">
-            <div className="w-[38px] h-[38px] rounded-[11px] bg-gradient-to-br from-[#15171C] to-[#2E6CA0] border border-[#333944] flex items-center justify-center font-black text-sm text-white flex-shrink-0">ML</div>
+            <div className="w-[38px] h-[38px] rounded-[11px] bg-gradient-to-br from-[#15171C] to-[#2E6CA0] border border-[#333944] flex items-center justify-center font-black text-sm text-white flex-shrink-0">{staffInitials}</div>
             <div className="text-[13.5px] leading-tight">
-              <div className="font-bold">Mateo · Liderium</div>
+              <div className="font-bold">{staffName}</div>
               <div className="text-[#7E8693] text-xs">Administrador</div>
             </div>
           </div>
@@ -696,7 +709,7 @@ export default function Staff({ onLogout }: StaffProps) {
           {/* ── FINANZAS ── */}
           {tab === 'finanzas' && (
             <div>
-              <div className="grid grid-cols-4 gap-4 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 {finKpis.map((kpi, i) => (
                   <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
                     <div className="text-[13px] text-[#8A929E] font-bold mb-[10px]">{kpi.label}</div>
@@ -710,7 +723,7 @@ export default function Staff({ onLogout }: StaffProps) {
                 ))}
               </div>
 
-              <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1.15fr' }}>
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1.15fr] gap-4">
                 {/* Estado de resultados */}
                 <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-6 py-6">
                   <div className="flex justify-between items-center mb-4">
@@ -821,8 +834,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
 
               <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
+                <div className="overflow-x-auto">
                 <div className="grid px-6 py-[14px] bg-[#FAFBFC] border-b border-[#F0F2F5] text-[11.5px] font-black uppercase tracking-[0.04em] text-[#9AA0A8]"
-                  style={{ gridTemplateColumns: '1.6fr 1fr 0.9fr 1fr 1fr 1fr' }}>
+                  style={{ gridTemplateColumns: '1.6fr 1fr 0.9fr 1fr 1fr 1fr', minWidth: '680px' }}>
                   <span>Cliente</span><span>Plan</span><span>Monto</span><span>Estado</span><span>Próximo cobro</span><span>Comprobante</span>
                 </div>
                 {dbClients.length === 0 ? (
@@ -834,7 +848,7 @@ export default function Staff({ onLogout }: StaffProps) {
                   return (
                     <div key={i}
                       className="grid px-6 py-4 border-b border-[#F2F4F7] last:border-b-0 items-center hover:bg-[#FAFBFC] transition"
-                      style={{ gridTemplateColumns: '1.6fr 1fr 0.9fr 1fr 1fr 1fr' }}>
+                      style={{ gridTemplateColumns: '1.6fr 1fr 0.9fr 1fr 1fr 1fr', minWidth: '680px' }}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-[10px] bg-[#F2F4F7] flex items-center justify-center font-black text-[12.5px] text-[#5A6270] flex-shrink-0">{ini}</div>
                         <span className="font-bold text-[14.5px] text-[#15171C]">{c.name}</span>
@@ -892,6 +906,7 @@ export default function Staff({ onLogout }: StaffProps) {
                     </div>
                   );
                 })}
+                </div>{/* /overflow-x-auto */}
               </div>
             </div>
           )}
