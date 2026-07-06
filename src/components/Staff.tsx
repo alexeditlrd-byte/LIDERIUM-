@@ -40,9 +40,9 @@ const ICONS: Record<string, React.ReactNode> = {
   ),
 };
 
-const navItems: { id: StaffTab; label: string }[] = [
+const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'clientes', label: 'Clientes' },
-  { id: 'finanzas', label: 'Finanzas' },
+  { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'pagos', label: 'Pagos' },
   { id: 'calendario', label: 'Calendario' },
   { id: 'chatia', label: 'Chat IA · Claude' },
@@ -122,12 +122,15 @@ export default function Staff({ onLogout }: StaffProps) {
   const [staffInitials, setStaffInitials] = useState('LI');
   const [dbClients, setDbClients] = useState<any[]>([]);
 
+  const [isFounder, setIsFounder] = useState(false);
+
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const name = user.user_metadata?.name || user.email?.split('@')[0] || 'Equipo';
       setStaffName(`${name} · Liderium`);
       setStaffInitials(name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
+      setIsFounder(user.user_metadata?.founder === true);
     });
   }, []);
   const [showModal, setShowModal] = useState(false);
@@ -394,7 +397,7 @@ export default function Staff({ onLogout }: StaffProps) {
         </div>
 
         <nav className="flex flex-col gap-[2px] flex-1">
-          {navItems.map((item) => (
+          {allNavItems.filter(item => !item.founderOnly || isFounder).map((item) => (
             <button
               key={item.id}
               onClick={() => setTab(item.id)}
