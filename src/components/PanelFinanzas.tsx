@@ -1,17 +1,34 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import type { FinanzasRow, FinanzasSections } from '@/lib/finanzas-sheet';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { FinanzasSections } from '@/lib/finanzas-sheet';
 
 interface PanelFinanzasProps {
   showToast: (text: string, ok?: boolean) => void;
 }
 
-const SECTION_TITLES: { key: keyof FinanzasSections; title: string }[] = [
+const SECTION_TABS: { key: keyof FinanzasSections; title: string }[] = [
   { key: 'flujo', title: 'Flujo de caja' },
   { key: 'resultados', title: 'Estado de resultados' },
   { key: 'balance', title: 'Balance general' },
 ];
+
+const MONTH_ORDER = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+
+// El Sheet no manda el año por columna, solo el nombre del mes (que se repite
+// entre 2026 y 2027) — lo inferimos asumiendo que empieza en 2026 y sumamos un
+// año cada vez que la secuencia de meses "da la vuelta" (de Diciembre a Enero).
+function niceMonthLabels(months: string[], baseYear = 2026) {
+  let year = baseYear;
+  let prevIdx = -1;
+  return months.map(m => {
+    const idx = MONTH_ORDER.indexOf(m.toUpperCase());
+    if (prevIdx !== -1 && idx < prevIdx) year++;
+    prevIdx = idx;
+    const nice = m.charAt(0) + m.slice(1).toLowerCase();
+    return `${nice} ${year}`;
+  });
+}
 
 function formatValue(v: string | number) {
   if (v === '' || v === null || v === undefined) return '';
@@ -24,7 +41,9 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   const [sections, setSections] = useState<FinanzasSections | null>(null);
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
-  const [editing, setEditing] = useState<{ sheet: string; row: number; col: number } | null>(null);
+  const [activeTab, setActiveTab] = useState<keyof FinanzasSections>('flujo');
+  const [monthIndex, setMonthIndex] = useState(0);
+  const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
   const savingRef = useRef(false);
 
@@ -43,18 +62,15 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startEdit = (sheet: string, row: number, col: number, current: string | number) => {
-    setEditing({ sheet, row, col });
-    setEditValue(current === '' || current === null || current === undefined ? '' : String(current));
-  };
+  const rows = useMemo(() => sections?.[activeTab] ?? [], [sections, activeTab]);
+  const monthLabels = useMemo(() => niceMonthLabels(rows[0]?.cells.map(c => c.month) ?? []), [rows]);
 
-  const commitEdit = async () => {
-    if (!editing || savingRef.current) return;
-    const { sheet, row, col } = editing;
+  const commitEdit = async (sheet: string, row: number, col: number) => {
+    if (savingRef.current) return;
     savingRef.current = true;
     const prevSections = sections;
     setSections(s => s && applyLocalEdit(s, sheet, row, col, editValue));
-    setEditing(null);
+    setEditingRow(null);
     try {
       const res = await fetch('/api/finanzas', {
         method: 'PATCH',
@@ -71,7 +87,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   };
 
   function applyLocalEdit(s: FinanzasSections, sheet: string, row: number, col: number, value: string): FinanzasSections {
-    const patchRows = (rows: FinanzasRow[]) => rows.map(r => (
+    const patchRows = (list: FinanzasSections[keyof FinanzasSections]) => list.map(r => (
       r.sheet === sheet && r.row === row ? { ...r, cells: r.cells.map(c => (c.col === col ? { ...c, value } : c)) } : r
     ));
     return { flujo: patchRows(s.flujo), resultados: patchRows(s.resultados), balance: patchRows(s.balance) };
@@ -92,61 +108,67 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
 
   return (
     <div className="flex flex-col gap-5">
-      {SECTION_TITLES.map(({ key, title }) => {
-        const rows = sections[key];
-        if (!rows.length) return null;
-        const months = rows[0].cells.map(c => c.month);
-        return (
-          <div key={key} className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#F0F2F5]">
-              <h3 className="font-grotesk font-semibold text-[17px] text-[#15171C]">{title}</h3>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="border-collapse" style={{ minWidth: `${220 + months.length * 110}px` }}>
-                <thead>
-                  <tr>
-                    <th className="sticky left-0 bg-[#FAFBFC] text-left px-4 py-2.5 text-[10.5px] font-black uppercase tracking-[0.04em] text-[#9AA0A8] border-b border-[#F0F2F5]" style={{ width: 220 }}>Concepto</th>
-                    {months.map((m, i) => (
-                      <th key={i} className="bg-[#FAFBFC] text-right px-3 py-2.5 text-[10.5px] font-black uppercase tracking-[0.04em] text-[#9AA0A8] border-b border-[#F0F2F5] whitespace-nowrap" style={{ width: 110 }}>{m}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map(r => (
-                    <tr key={r.sheet + '-' + r.row} className="hover:bg-[#FAFBFC] transition">
-                      <td className="sticky left-0 bg-white text-[13px] font-semibold text-[#15171C] px-4 py-2 border-b border-[#F5F6F8] truncate" style={{ width: 220 }}>{r.label}</td>
-                      {r.cells.map(c => {
-                        const isEditing = editing?.sheet === r.sheet && editing?.row === r.row && editing?.col === c.col;
-                        return (
-                          <td key={c.col} className="text-right px-3 py-2 border-b border-[#F5F6F8]" style={{ width: 110 }}>
-                            {isEditing ? (
-                              <input
-                                autoFocus
-                                value={editValue}
-                                onChange={e => setEditValue(e.target.value)}
-                                onBlur={commitEdit}
-                                onKeyDown={e => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') setEditing(null); }}
-                                className="w-full text-right text-[12.5px] font-semibold text-[#15171C] border border-steel rounded-[6px] px-1.5 py-1 outline-none"
-                              />
-                            ) : c.editable ? (
-                              <button onClick={() => startEdit(r.sheet, r.row, c.col, c.value)}
-                                className="w-full text-right text-[12.5px] font-semibold text-[#3C434F] bg-transparent border-none cursor-pointer hover:text-steel px-1 py-0.5 rounded-[6px] hover:bg-[#F4F6F8] transition">
-                                {formatValue(c.value) || '—'}
-                              </button>
-                            ) : (
-                              <span className="text-[12.5px] font-black text-[#15171C]">{formatValue(c.value) || '—'}</span>
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-[3px] bg-[#F4F6F8] border border-[#E2E5EA] rounded-[11px] p-[3px]">
+          {SECTION_TABS.map(t => (
+            <button key={t.key} onClick={() => { setActiveTab(t.key); setMonthIndex(0); }}
+              className={`px-4 py-[9px] rounded-[8px] text-[13px] font-bold cursor-pointer border-none transition ${activeTab === t.key ? 'bg-[#15171C] text-white' : 'bg-transparent text-[#5A6270] hover:text-[#15171C]'}`}>
+              {t.title}
+            </button>
+          ))}
+        </div>
+        {monthLabels.length > 0 && (
+          <select value={monthIndex} onChange={e => setMonthIndex(Number(e.target.value))}
+            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
+            {monthLabels.map((label, i) => <option key={i} value={i}>{label}</option>)}
+          </select>
+        )}
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-8 py-16 text-center text-[14px] text-[#8A929E] font-semibold">
+          No se encontraron filas para esta sección.
+        </div>
+      ) : (
+        <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between">
+            <h3 className="font-grotesk font-semibold text-[17px] text-[#15171C]">{SECTION_TABS.find(t => t.key === activeTab)?.title}</h3>
+            <span className="text-[12.5px] font-bold text-[#8A929E]">{monthLabels[monthIndex]}</span>
           </div>
-        );
-      })}
+          <div>
+            {rows.map(r => {
+              const cell = r.cells[monthIndex];
+              if (!cell) return null;
+              const rowKey = r.sheet + '-' + r.row;
+              const isEditing = editingRow === rowKey;
+              return (
+                <div key={rowKey} className="flex items-center justify-between gap-4 px-6 py-[11px] border-b border-[#F5F6F8] last:border-b-0 hover:bg-[#FAFBFC] transition">
+                  <span className="text-[14px] font-semibold text-[#3C434F]">{r.label}</span>
+                  {isEditing ? (
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={() => commitEdit(r.sheet, r.row, cell.col)}
+                      onKeyDown={e => { if (e.key === 'Enter') commitEdit(r.sheet, r.row, cell.col); if (e.key === 'Escape') setEditingRow(null); }}
+                      className="w-[140px] text-right text-[14px] font-bold text-[#15171C] border border-steel rounded-[7px] px-2 py-1 outline-none"
+                    />
+                  ) : cell.editable ? (
+                    <button
+                      onClick={() => { setEditingRow(rowKey); setEditValue(cell.value === '' || cell.value === null ? '' : String(cell.value)); }}
+                      className="text-right text-[14px] font-bold text-[#3C434F] bg-transparent border-none cursor-pointer hover:text-steel px-2 py-1 rounded-[7px] hover:bg-[#F4F6F8] transition min-w-[80px]">
+                      {formatValue(cell.value) || '—'}
+                    </button>
+                  ) : (
+                    <span className="text-[14px] font-black text-[#15171C] px-2 py-1 min-w-[80px] text-right">{formatValue(cell.value) || '—'}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
