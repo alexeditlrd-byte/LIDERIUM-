@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { sheetConfigured, listLeads, createLead, updateLead } from '@/lib/leads-sheet';
+import { sheetConfigured, listLeads, createLead, updateLead, deleteLead } from '@/lib/leads-sheet';
 
 export async function GET() {
   if (!sheetConfigured()) {
@@ -40,5 +40,20 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ lead });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? 'Error al actualizar el lead en el Google Sheet' }, { status: 502 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  if (!sheetConfigured()) {
+    return NextResponse.json({ error: 'El Google Sheet de leads todavía no está conectado (falta GOOGLE_LEADS_WEBHOOK_URL).' }, { status: 503 });
+  }
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 });
+  try {
+    await deleteLead(id);
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message ?? 'Error al eliminar el lead del Google Sheet' }, { status: 502 });
   }
 }

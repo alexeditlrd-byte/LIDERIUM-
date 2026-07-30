@@ -64,3 +64,7 @@ export async function updateLead(id: string, patch: Partial<LeadInput>): Promise
   const data = await callWebhook({ action: 'update', id, patch });
   return data.lead as Lead;
 }
+
+export async function deleteLead(id: string): Promise<void> {
+  await callWebhook({ action: 'delete', id });
+}

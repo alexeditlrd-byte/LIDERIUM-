@@ -173,6 +173,24 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   const openAddForm = () => { setDraft(emptyDraft()); setFormError(''); setShowAddForm(true); };
 
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const deleteLead = async (lead: Lead) => {
+    if (!confirm(`¿Eliminar el lead "${lead.nombre}"? Esto lo borra también del Google Sheet.`)) return;
+    setDeletingId(lead.id);
+    try {
+      const res = await fetch(`/api/leads?id=${lead.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setLeads(ls => ls.filter(l => l.id !== lead.id));
+      if (selectedId === lead.id) setSelectedId(null);
+      showToast(`Lead ${lead.nombre} eliminado`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo eliminar el lead', false);
+    }
+    setDeletingId(null);
+  };
+
   const inputClass = 'w-full h-[42px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[10px] text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white';
   const labelClass = 'block text-[10.5px] font-black text-[#9AA0A8] uppercase tracking-[0.05em] mb-[5px]';
 
@@ -297,6 +315,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                       className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] flex items-center justify-center text-[#5A6270] no-underline">
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5" /><path d="M22 6l-10 7L2 6" /></svg>
                     </a>
+                    <button onClick={() => deleteLead(lead)} disabled={deletingId === lead.id} title="Eliminar lead"
+                      className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] border-none flex items-center justify-center text-[#5A6270] cursor-pointer hover:bg-[#FCEDED] hover:text-[#D14343] transition disabled:opacity-50 disabled:cursor-not-allowed">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                    </button>
                   </div>
                 </div>
               );
@@ -463,9 +485,15 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.numero}</span>
                 </div>
               </div>
-              <button onClick={() => setSelectedId(null)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] flex-shrink-0">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
+              <div className="flex gap-2 flex-shrink-0">
+                <button onClick={() => deleteLead(selectedLead)} disabled={deletingId === selectedLead.id} title="Eliminar lead"
+                  className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#FCEDED] hover:text-[#D14343] transition disabled:opacity-50 disabled:cursor-not-allowed">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                </button>
+                <button onClick={() => setSelectedId(null)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270]">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-2 mt-5">

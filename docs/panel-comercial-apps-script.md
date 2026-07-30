@@ -117,6 +117,13 @@ function doPost(e) {
       sheet.getRange(rowNum, 1, 1, HEADERS.length).setValues([leadToRow_(updated)]);
       out = { lead: rowToLead_(leadToRow_(updated)) };
 
+    } else if (body.action === 'delete') {
+      const values = sheet.getDataRange().getValues();
+      const idx = values.findIndex((r, i) => i > 0 && String(r[0]) === String(body.id));
+      if (idx < 1) throw new Error('Lead no encontrado: ' + body.id);
+      sheet.deleteRow(idx + 1);
+      out = { success: true };
+
     } else {
       throw new Error('Acción desconocida: ' + body.action);
     }
