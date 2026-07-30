@@ -48,9 +48,7 @@ const ICONS: Record<string, React.ReactNode> = {
 
 const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'comercial', label: 'Comercial' },
-  { id: 'clientes', label: 'Clientes' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
-  { id: 'pagos', label: 'Pagos' },
   { id: 'calendario', label: 'Calendario' },
   { id: 'chatia', label: 'Chat IA · Claude' },
 ];
@@ -125,7 +123,7 @@ function formatMeetDate(iso: string) {
 }
 
 export default function Staff({ onLogout }: StaffProps) {
-  const [tab, setTab] = useState<StaffTab>('clientes');
+  const [tab, setTab] = useState<StaffTab>('comercial');
   const [staffName, setStaffName] = useState('Equipo · Liderium');
   const [staffInitials, setStaffInitials] = useState('LI');
   const [dbClients, setDbClients] = useState<any[]>([]);
