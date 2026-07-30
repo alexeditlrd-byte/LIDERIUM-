@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function POST(req: NextRequest) {
-  const { clientSlug, clientName, clientEmail, title, mentor, mentorRole, scheduledAt, durationMinutes } = await req.json();
+  const { clientSlug, clientName, clientEmail, title, mentor, mentorRole, mentorEmail, scheduledAt, durationMinutes } = await req.json();
 
-  if (!clientSlug || !title || !mentor || !scheduledAt) {
+  if (!clientSlug || !title || !mentor || !mentorEmail || !scheduledAt) {
     return NextResponse.json({ error: 'Faltan campos' }, { status: 400 });
   }
 
@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
           title,
           startTime: scheduledAt,
           durationMinutes: durationMinutes ?? 45,
-          guestEmail: clientEmail ?? '',
+          guestEmail: mentorEmail || clientEmail || '',
           description: `Reunión con ${clientName} — Liderium`,
         }),
       });

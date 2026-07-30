@@ -216,7 +216,7 @@ export default function Staff({ onLogout }: StaffProps) {
 
   const [reuniones, setReuniones] = useState<any[]>([]);
   const [showReunionModal, setShowReunionModal] = useState(false);
-  const [reunionForm, setReunionForm] = useState({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', fecha: '', hora: '', duracion: 45 });
+  const [reunionForm, setReunionForm] = useState({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', fecha: '', hora: '', duracion: 45 });
   const [creatingReunion, setCreatingReunion] = useState(false);
   const [reunionCreated, setReunionCreated] = useState<{ meetLink: string } | null>(null);
   const [reunionErr, setReunionErr] = useState('');
@@ -266,15 +266,15 @@ export default function Staff({ onLogout }: StaffProps) {
   };
 
   const openReunionModal = () => {
-    setReunionForm({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', fecha: '', hora: '', duracion: 45 });
+    setReunionForm({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', fecha: '', hora: '', duracion: 45 });
     setReunionCreated(null);
     setReunionErr('');
     setShowReunionModal(true);
   };
 
   const handleCrearReunion = async () => {
-    const { clientSlug, title, mentor, fecha, hora } = reunionForm;
-    if (!clientSlug || !title || !mentor || !fecha || !hora) { setReunionErr('Completa todos los campos.'); return; }
+    const { clientSlug, title, mentor, mentorEmail, fecha, hora } = reunionForm;
+    if (!clientSlug || !title || !mentor || !mentorEmail || !fecha || !hora) { setReunionErr('Completa todos los campos.'); return; }
     setCreatingReunion(true); setReunionErr('');
     const scheduledAt = new Date(`${fecha}T${hora}:00`).toISOString();
     const res = await fetch('/api/crear-reunion', {
@@ -1007,6 +1007,12 @@ export default function Staff({ onLogout }: StaffProps) {
                             <input type="text" placeholder="Ej: Estratega de contenido" value={reunionForm.mentorRole} onChange={e => setReunionForm(f => ({ ...f, mentorRole: e.target.value }))}
                               className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
                           </div>
+                        </div>
+                        <div>
+                          <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Gmail del responsable</label>
+                          <input type="email" placeholder="mateo@liderium.com" value={reunionForm.mentorEmail} onChange={e => setReunionForm(f => ({ ...f, mentorEmail: e.target.value }))}
+                            className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                          <p className="text-[12px] text-[#8A929E] font-semibold mt-1.5">Se le invita a este correo para que la reunión aparezca en su Google Calendar.</p>
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
