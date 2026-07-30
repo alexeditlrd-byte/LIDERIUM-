@@ -53,24 +53,27 @@ function getSheet_() {
     sheet.appendRow(HEADERS);
     sheet.setFrozenRows(1);
   }
-  // fechaInicio y fechaRenovacion son las columnas 13 y 14 — se guardan como
-  // "d/m/aaaa" en texto plano. Si Sheets detecta el patrón de fecha y no hay un
-  // formato de columna explícito, convierte la celda a un valor Date real y
-  // rompe el parseo del panel. Forzamos texto plano en esas dos columnas.
-  sheet.getRange(2, 13, Math.max(sheet.getMaxRows() - 1, 1), 2).setNumberFormat('@');
+  // Sheets autodetecta fechas ("30/7/2026") y números de puro dígito
+  // ("51987654321") y convierte la celda a un valor Date/Number real si la
+  // columna no tiene un formato explícito. Forzamos texto plano en todas las
+  // columnas para que el panel siempre reciba lo que escribió, tal cual.
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 1), HEADERS.length).setNumberFormat('@');
   return sheet;
 }
 
-function formatDate_(v) {
+function cellToString_(v) {
   if (v instanceof Date) return v.getDate() + '/' + (v.getMonth() + 1) + '/' + v.getFullYear();
-  return v || '';
+  if (v === null || v === undefined) return '';
+  return String(v);
 }
+
+const NUMERIC_FIELDS_ = ['precio', 'abono', 'deuda'];
 
 function rowToLead_(row) {
   const lead = {};
-  HEADERS.forEach((h, i) => { lead[h] = row[i]; });
-  lead.fechaInicio = formatDate_(lead.fechaInicio);
-  lead.fechaRenovacion = formatDate_(lead.fechaRenovacion);
+  HEADERS.forEach((h, i) => {
+    lead[h] = NUMERIC_FIELDS_.includes(h) ? row[i] : cellToString_(row[i]);
+  });
   lead.precio = Number(lead.precio) || 0;
   lead.abono = Number(lead.abono) || 0;
   lead.deuda = lead.precio - lead.abono;
