@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
 
 interface StaffProps {
@@ -78,15 +79,6 @@ const incomeRows = [
   { label: 'Oficina y servicios', value: '— S/ 3,200', kind: 'cost' },
   { label: 'Marketing y captación', value: '— S/ 2,400', kind: 'cost' },
   { label: 'Utilidad neta', value: 'S/ 12,600', kind: 'total' },
-];
-
-const clients = [
-  { ini: 'AC', slug: 'aurora-cafe', name: 'Aurora Café', plan: 'Crecimiento', amount: 'S/ 2,400', status: 'Al día', next: '01 jul' },
-  { ini: 'SN', slug: 'studio-norte', name: 'Studio Norte', plan: 'Pro', amount: 'S/ 3,800', status: 'Al día', next: '03 jul' },
-  { ini: 'VM', slug: 'verde-market', name: 'Verde Market', plan: 'Crecimiento', amount: 'S/ 2,400', status: 'Pendiente', next: '18 jun' },
-  { ini: 'CS', slug: 'clinica-sonrie', name: 'Clínica Sonríe', plan: 'Esencial', amount: 'S/ 1,600', status: 'Vencido', next: '10 jun' },
-  { ini: 'FL', slug: 'fit-lima', name: 'Fit Lima', plan: 'Pro', amount: 'S/ 3,800', status: 'Al día', next: '05 jul' },
-  { ini: 'PO', slug: 'pan-de-oro', name: 'Pan de Oro', plan: 'Esencial', amount: 'S/ 1,600', status: 'Pendiente', next: '20 jun' },
 ];
 
 const meetings = [
@@ -237,8 +229,13 @@ export default function Staff({ onLogout }: StaffProps) {
     fetch('/api/reuniones').then(r => r.json()).then(d => setReuniones(d.meetings ?? [])).catch(() => {});
   };
 
+  const [comercialLeads, setComercialLeads] = useState<Lead[]>([]);
+  const loadComercialLeads = () => {
+    fetch('/api/leads').then(r => r.json()).then(d => setComercialLeads(d.leads ?? [])).catch(() => {});
+  };
+
   useEffect(() => {
-    if (tab === 'calendario') loadReuniones();
+    if (tab === 'calendario') { loadReuniones(); loadComercialLeads(); }
   }, [tab]);
 
   const generatePassword = () => Math.random().toString(36).slice(2, 8) + Math.random().toString(36).slice(2, 6).toUpperCase() + '!';
@@ -981,15 +978,23 @@ export default function Staff({ onLogout }: StaffProps) {
                         <div>
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cliente</label>
                           <select value={reunionForm.clientSlug} onChange={e => {
-                            const all = dbClients.length > 0 ? dbClients : clients;
-                            const c = all.find((x: any) => x.slug === e.target.value) as any;
-                            setReunionForm(f => ({ ...f, clientSlug: e.target.value, clientName: c?.name ?? '', clientEmail: c?.email ?? '' }));
+                            const lead = comercialLeads.find(l => l.id === e.target.value);
+                            setReunionForm(f => ({ ...f, clientSlug: e.target.value, clientName: lead?.nombre ?? '', clientEmail: '' }));
                           }} className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
                             <option value="">Selecciona cliente…</option>
-                            {(dbClients.length > 0 ? dbClients : clients).map((c: any) => (
-                              <option key={c.slug} value={c.slug}>{c.name}</option>
+                            {comercialLeads.map(lead => (
+                              <option key={lead.id} value={lead.id}>{lead.nombre}</option>
                             ))}
                           </select>
+                          {(() => {
+                            const selectedLead = comercialLeads.find(l => l.id === reunionForm.clientSlug);
+                            if (!selectedLead) return null;
+                            return (
+                              <div className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-bold text-[#2E6CA0] bg-[#EAF1F8] px-2.5 py-1 rounded-full">
+                                Situación: {selectedLead.faseVenta} · {selectedLead.estado}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
