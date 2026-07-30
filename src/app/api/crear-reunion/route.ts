@@ -11,7 +11,9 @@ export async function POST(req: NextRequest) {
   // Crear evento en Google Calendar vía Apps Script → Meet link automático
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
   let meetLink = '';
-  if (scriptUrl) {
+  if (!scriptUrl) {
+    console.error('[crear-reunion] GOOGLE_SCRIPT_URL no está configurado');
+  } else {
     try {
       const res = await fetch(scriptUrl, {
         method: 'POST',
@@ -26,9 +28,17 @@ export async function POST(req: NextRequest) {
           description: `Reunión con ${clientName} — Liderium`,
         }),
       });
-      const data = await res.json();
-      meetLink = data.meetLink ?? '';
-    } catch {}
+      const text = await res.text();
+      let data: Record<string, unknown> = {};
+      try { data = JSON.parse(text); } catch {
+        console.error('[crear-reunion] respuesta no-JSON del Apps Script:', text.slice(0, 500));
+      }
+      if (data.error) console.error('[crear-reunion] el Apps Script devolvió error:', data.error);
+      meetLink = (data.meetLink as string) ?? '';
+      if (!meetLink) console.error('[crear-reunion] sin meetLink en la respuesta. status:', res.status, 'body:', text.slice(0, 500));
+    } catch (e) {
+      console.error('[crear-reunion] fetch al Apps Script falló:', e instanceof Error ? e.message : String(e));
+    }
   }
 
   const mentorIni = mentor.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
