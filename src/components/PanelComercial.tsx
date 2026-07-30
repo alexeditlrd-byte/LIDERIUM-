@@ -1,0 +1,575 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import type { Lead, LeadInput } from '@/lib/leads-sheet';
+
+interface PanelComercialProps {
+  showToast: (text: string, ok?: boolean) => void;
+}
+
+type View = 'tabla' | 'kanban';
+type Filter = 'all' | 'alta' | 'nuevo';
+
+const ESTADOS: Lead['estado'][] = ['Nuevo', 'Contactado', 'Ganado', 'Perdido'];
+const PRIORIDADES: Lead['prioridad'][] = ['Alta', 'Media', 'Baja'];
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+const ESTADO_STYLE: Record<Lead['estado'], { bg: string; color: string }> = {
+  Nuevo: { bg: '#EAF7F1', color: '#1F9B6E' },
+  Contactado: { bg: '#EAF1F8', color: '#2E6CA0' },
+  Ganado: { bg: '#FBF1E2', color: '#B5740F' },
+  Perdido: { bg: '#FCEDED', color: '#D14343' },
+};
+
+const PRIORIDAD_COLOR: Record<Lead['prioridad'], string> = {
+  Alta: '#D14343',
+  Media: '#B5740F',
+  Baja: '#AEB4BE',
+};
+
+function emptyDraft(): LeadInput {
+  const today = new Date();
+  const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+  return {
+    nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '',
+    nps: '', plan: 'Starter', faseVenta: 'Prospección', probabilidad: '', responsable: '',
+    fechaInicio, fechaRenovacion: '', precio: 0, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
+  };
+}
+
+function dmyToISO(str: string) {
+  const parts = String(str || '').split('/');
+  if (parts.length !== 3) return '';
+  const [d, m, y] = parts;
+  return y.padStart(4, '0') + '-' + m.padStart(2, '0') + '-' + d.padStart(2, '0');
+}
+function isoToDMY(iso: string) {
+  const parts = (iso || '').split('-');
+  if (parts.length !== 3) return '';
+  const [y, m, d] = parts;
+  return `${Number(d)}/${Number(m)}/${y}`;
+}
+function money(n: number) {
+  const v = Number(n) || 0;
+  const sign = v < 0 ? '-' : '';
+  return sign + '$' + Math.abs(v).toLocaleString('en-US');
+}
+function leadInMonth(lead: Lead, ym: string) {
+  const parts = String(lead.fechaInicio || '').split('/');
+  if (parts.length !== 3) return false;
+  const [, m, y] = parts;
+  return `${y.padStart(4, '0')}-${m.padStart(2, '0')}` === ym;
+}
+function waLink(numero: string) {
+  return 'https://wa.me/' + (numero || '').replace(/[^0-9]/g, '');
+}
+function mailLink(nombre: string) {
+  return 'mailto:' + (nombre || '').toLowerCase().replace(/[^a-z]+/g, '.') + '@cliente.com';
+}
+
+export default function PanelComercial({ showToast }: PanelComercialProps) {
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [configured, setConfigured] = useState(true);
+
+  const [view, setView] = useState<View>('tabla');
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [draft, setDraft] = useState<LeadInput>(emptyDraft());
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const loadLeads = () => {
+    fetch('/api/leads')
+      .then(r => r.json())
+      .then(d => { setLeads(d.leads ?? []); setConfigured(d.configured !== false); if (d.error) showToast(d.error, false); })
+      .catch(() => showToast('No se pudo cargar el panel comercial', false))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadLeads(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const monthOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [];
+    const y0 = now.getFullYear();
+    for (let y = y0 - 1; y <= y0 + 1; y++) {
+      for (let m = 1; m <= 12; m++) {
+        opts.push({ value: `${y}-${String(m).padStart(2, '0')}`, label: `${MONTH_NAMES[m - 1]} ${y}` });
+      }
+    }
+    return opts;
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const monthLeads = useMemo(() => leads.filter(l => leadInMonth(l, selectedMonth)), [leads, selectedMonth]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return monthLeads.filter(l => {
+      if (q && !(l.nombre.toLowerCase().includes(q) || l.nicho.toLowerCase().includes(q) || l.instagram.toLowerCase().includes(q))) return false;
+      if (filter === 'alta' && l.prioridad !== 'Alta') return false;
+      if (filter === 'nuevo' && l.estado !== 'Nuevo') return false;
+      return true;
+    });
+  }, [monthLeads, search, filter]);
+
+  const newCount = monthLeads.filter(l => l.estado === 'Nuevo').length;
+  const altaCount = monthLeads.filter(l => l.prioridad === 'Alta').length;
+  const ganadosMes = monthLeads.filter(l => l.estado === 'Ganado');
+  const kpiActivos = monthLeads.filter(l => l.estado !== 'Perdido').length;
+  const kpiIngresos = money(ganadosMes.reduce((s, l) => s + (l.precio || 0), 0));
+
+  const columns = ESTADOS.map(estado => ({
+    estado, leads: visible.filter(l => l.estado === estado),
+  }));
+
+  const selectedLead = selectedId ? leads.find(l => l.id === selectedId) ?? null : null;
+
+  const patchLead = async (id: string, patch: Partial<LeadInput>) => {
+    const prev = leads;
+    setLeads(ls => ls.map(l => (l.id === id ? { ...l, ...patch } : l)));
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, patch }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setLeads(ls => ls.map(l => (l.id === id ? data.lead : l)));
+    } catch (e) {
+      setLeads(prev);
+      showToast(e instanceof Error ? e.message : 'No se pudo actualizar el lead', false);
+    }
+  };
+
+  const submitAddForm = async () => {
+    if (!draft.nombre.trim() || !draft.numero.trim() || !draft.precio) {
+      setFormError('Nombre, WhatsApp y precio son obligatorios.');
+      return;
+    }
+    setSubmitting(true);
+    setFormError('');
+    try {
+      const res = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(draft),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setLeads(ls => [data.lead, ...ls]);
+      setShowAddForm(false);
+      showToast(`Lead ${draft.nombre} guardado en el Google Sheet`);
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Error al guardar el lead.');
+    }
+    setSubmitting(false);
+  };
+
+  const openAddForm = () => { setDraft(emptyDraft()); setFormError(''); setShowAddForm(true); };
+
+  const inputClass = 'w-full h-[42px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[10px] text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white';
+  const labelClass = 'block text-[10.5px] font-black text-[#9AA0A8] uppercase tracking-[0.05em] mb-[5px]';
+
+  return (
+    <div>
+      {!configured && (
+        <div className="flex items-center gap-3 bg-[#FBF1E2] border border-[#F0D9A8] rounded-[14px] px-5 py-4 mb-5 text-[13.5px] text-[#8A6020] font-semibold">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A6020" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0"><path d="M12 9v4M12 17h.01" /><circle cx="12" cy="12" r="10" /></svg>
+          El panel comercial todavía no está conectado a tu Google Sheet de leads. Los datos no se guardarán hasta terminar esa configuración.
+        </div>
+      )}
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap items-center gap-3 mb-5">
+        <div className="relative flex-1 min-w-[220px] max-w-[360px]">
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar por nombre, nicho, Instagram..."
+            className="w-full h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] pl-9 pr-3 text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9AA0A8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+        </div>
+
+        <div className="flex gap-[3px] bg-[#F4F6F8] border border-[#E2E5EA] rounded-[11px] p-[3px]">
+          {(['tabla', 'kanban'] as View[]).map(v => (
+            <button key={v} onClick={() => setView(v)}
+              className={`px-4 py-[7px] rounded-[8px] text-[12.5px] font-bold cursor-pointer border-none transition ${view === v ? 'bg-[#15171C] text-white' : 'bg-transparent text-[#5A6270] hover:text-[#15171C]'}`}>
+              {v === 'tabla' ? 'Tabla' : 'Kanban'}
+            </button>
+          ))}
+        </div>
+
+        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
+          className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
+          {monthOptions.map(mo => <option key={mo.value} value={mo.value}>{mo.label}</option>)}
+        </select>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        {[
+          { label: 'Leads activos', value: kpiActivos, color: '#15171C' },
+          { label: 'Nuevos sin contactar', value: newCount, color: '#1F9B6E' },
+          { label: 'Ganados este mes', value: ganadosMes.length, color: '#15171C' },
+          { label: 'Ingresos cerrados', value: kpiIngresos, color: '#15171C' },
+        ].map((kpi, i) => (
+          <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
+            <div className="text-[11px] text-[#8A929E] font-bold uppercase tracking-[0.05em]">{kpi.label}</div>
+            <div className="font-grotesk font-bold text-[26px] tracking-[-0.02em] mt-1.5" style={{ color: kpi.color }}>{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex flex-wrap items-center gap-2 mb-5">
+        {[
+          { key: 'all' as Filter, label: `Todos (${monthLeads.length})` },
+          { key: 'alta' as Filter, label: `Prioridad alta (${altaCount})` },
+          { key: 'nuevo' as Filter, label: `Nuevos (${newCount})` },
+        ].map(c => (
+          <button key={c.key} onClick={() => setFilter(c.key)}
+            className={`px-3.5 py-[7px] rounded-[8px] text-[12px] font-bold cursor-pointer border transition ${filter === c.key ? 'bg-[#15171C] text-white border-[#15171C]' : 'bg-white text-[#5A6270] border-[#E2E5EA] hover:border-[#15171C]'}`}>
+            {c.label}
+          </button>
+        ))}
+        <button onClick={openAddForm} disabled={!configured}
+          className="ml-auto flex items-center gap-2 bg-[#15171C] text-white border-none font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+          Nuevo lead
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-8 py-16 text-center text-[14px] text-[#8A929E] font-semibold">Cargando leads…</div>
+      ) : visible.length === 0 ? (
+        <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-8 py-16 flex flex-col items-center text-center">
+          <div className="font-grotesk font-bold text-[17px] text-[#15171C] mb-1">Sin leads para este mes</div>
+          <div className="text-[13.5px] text-[#8A929E] font-semibold">{configured ? 'Agrega el primer lead o cambia de mes / filtro.' : 'Conecta el Google Sheet para empezar a registrar leads.'}</div>
+        </div>
+      ) : view === 'tabla' ? (
+        <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
+          <div className="overflow-x-auto">
+            <div className="grid px-6 py-[13px] bg-[#FAFBFC] border-b border-[#F0F2F5] text-[10.5px] font-black uppercase tracking-[0.05em] text-[#9AA0A8]"
+              style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr .8fr 1fr .9fr 1fr 1.1fr', minWidth: '900px' }}>
+              <span>Cliente</span><span>Nicho</span><span>Fase de venta</span><span>NPS</span><span>Plan / Precio</span><span>Responsable</span><span>Estado</span><span className="text-right">Acciones</span>
+            </div>
+            {visible.map(lead => {
+              const ec = ESTADO_STYLE[lead.estado];
+              return (
+                <div key={lead.id} onClick={() => setSelectedId(lead.id)}
+                  className="grid px-6 py-[13px] items-center border-b border-[#F2F4F7] last:border-b-0 cursor-pointer hover:bg-[#FAFBFC] transition"
+                  style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr .8fr 1fr .9fr 1fr 1.1fr', minWidth: '900px', background: lead.estado === 'Nuevo' ? 'rgba(31,155,110,.04)' : undefined }}>
+                  <div className="flex items-center gap-[10px] min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
+                    <div className="min-w-0">
+                      <div className="text-[13.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                      <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{lead.instagram}</div>
+                    </div>
+                  </div>
+                  <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.nicho}</div>
+                  <div className="text-[12px] text-[#8A929E] font-semibold">{lead.faseVenta}</div>
+                  <div className="text-[12.5px] font-bold text-[#15171C]">{lead.nps}</div>
+                  <div>
+                    <div className="text-[12.5px] font-bold text-[#15171C]">{lead.plan}</div>
+                    <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio)}</div>
+                  </div>
+                  <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.responsable}</div>
+                  <div onClick={e => e.stopPropagation()}>
+                    <select value={lead.estado} onChange={e => patchLead(lead.id, { estado: e.target.value as Lead['estado'] })}
+                      style={{ background: ec.bg, color: ec.color }}
+                      className="w-full border-none rounded-[7px] px-2.5 py-[6px] text-[11.5px] font-black cursor-pointer outline-none">
+                      {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
+                    </select>
+                  </div>
+                  <div onClick={e => e.stopPropagation()} className="flex gap-[6px] justify-end">
+                    <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                      className="w-8 h-8 rounded-[8px] bg-[#EAF7F1] flex items-center justify-center text-[#1F9B6E] no-underline">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14L21 3" /></svg>
+                    </a>
+                    <a href={mailLink(lead.nombre)} title="Correo"
+                      className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] flex items-center justify-center text-[#5A6270] no-underline">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5" /><path d="M22 6l-10 7L2 6" /></svg>
+                    </a>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+          {columns.map(col => (
+            <div key={col.estado} className="bg-white border border-[#ECEEF2] rounded-[18px] min-h-[160px]">
+              <div className="flex items-center justify-between px-4 py-[13px] border-b border-[#F0F2F5]">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full" style={{ background: ESTADO_STYLE[col.estado].color }} />
+                  <span className="text-[12.5px] font-black text-[#15171C]">{col.estado}</span>
+                </div>
+                <span className="text-[11px] font-bold text-[#9AA0A8]">{col.leads.length}</span>
+              </div>
+              <div className="flex flex-col gap-[10px] p-3">
+                {col.leads.map(lead => (
+                  <div key={lead.id} onClick={() => setSelectedId(lead.id)}
+                    className="bg-[#FAFBFC] border border-[#F0F2F5] rounded-[12px] p-3 cursor-pointer hover:border-steel transition">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="text-[13px] font-bold text-[#15171C]">{lead.nombre}</div>
+                      <span className="w-[7px] h-[7px] rounded-full flex-shrink-0 mt-1" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
+                    </div>
+                    <div className="text-[11px] text-[#8A929E] font-semibold mt-0.5">{lead.nicho}</div>
+                    <div className="flex justify-between items-center mt-2.5">
+                      <div className="text-[11px] text-[#9AA0A8] font-semibold">{lead.faseVenta}</div>
+                      <div className="text-[11.5px] font-bold text-[#1F9B6E]">{money(lead.precio)}</div>
+                    </div>
+                    <div onClick={e => e.stopPropagation()} className="flex gap-[6px] mt-2.5">
+                      <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer"
+                        className="flex-1 text-center py-[6px] rounded-[7px] bg-[#EAF7F1] text-[#1F9B6E] text-[10.5px] font-bold no-underline">WhatsApp</a>
+                      <select value={lead.estado} onChange={e => patchLead(lead.id, { estado: e.target.value as Lead['estado'] })}
+                        className="bg-[#F4F6F8] border border-[#E2E5EA] text-[#15171C] rounded-[7px] text-[10.5px] font-semibold px-1 outline-none cursor-pointer">
+                        {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                ))}
+                {col.leads.length === 0 && <div className="text-[11.5px] text-[#C2C8D2] font-semibold text-center py-4">Sin leads</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add modal */}
+      {showAddForm && (
+        <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!submitting) setShowAddForm(false); }}>
+          <div className="bg-white rounded-[22px] w-full max-w-[560px] max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5] sticky top-0 bg-white">
+              <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Añadir lead</div>
+              <button onClick={() => setShowAddForm(false)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="px-7 py-6 grid grid-cols-2 gap-3">
+              <div className="col-span-2">
+                <label className={labelClass}>Nombre *</label>
+                <input className={inputClass} value={draft.nombre} onChange={e => setDraft(d => ({ ...d, nombre: e.target.value }))} placeholder="Nombre del lead" />
+              </div>
+              <div>
+                <label className={labelClass}>Instagram</label>
+                <input className={inputClass} value={draft.instagram} onChange={e => setDraft(d => ({ ...d, instagram: e.target.value }))} placeholder="@usuario" />
+              </div>
+              <div>
+                <label className={labelClass}>WhatsApp *</label>
+                <input className={inputClass} value={draft.numero} onChange={e => setDraft(d => ({ ...d, numero: e.target.value }))} placeholder="51987654321" />
+              </div>
+              <div>
+                <label className={labelClass}>Tipo infoproductor</label>
+                <input className={inputClass} value={draft.tipoInfoproductor} onChange={e => setDraft(d => ({ ...d, tipoInfoproductor: e.target.value }))} placeholder="Ej. Coach fitness" />
+              </div>
+              <div>
+                <label className={labelClass}>Nicho</label>
+                <input className={inputClass} value={draft.nicho} onChange={e => setDraft(d => ({ ...d, nicho: e.target.value }))} placeholder="Ej. Fitness & nutrición" />
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass}>Plataformas activas</label>
+                <input className={inputClass} value={draft.plataformas} onChange={e => setDraft(d => ({ ...d, plataformas: e.target.value }))} placeholder="Instagram, TikTok" />
+              </div>
+              <div>
+                <label className={labelClass}>Plan</label>
+                <select className={inputClass} value={draft.plan} onChange={e => setDraft(d => ({ ...d, plan: e.target.value }))}>
+                  <option value="Starter">Starter</option><option value="Growth">Growth</option><option value="Premium">Premium</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Responsable</label>
+                <input className={inputClass} value={draft.responsable} onChange={e => setDraft(d => ({ ...d, responsable: e.target.value }))} placeholder="Nombre del comercial" />
+              </div>
+              <div>
+                <label className={labelClass}>NPS Score</label>
+                <input className={inputClass} value={draft.nps} onChange={e => setDraft(d => ({ ...d, nps: e.target.value }))} placeholder="0-10" />
+              </div>
+              <div>
+                <label className={labelClass}>Fase de venta</label>
+                <select className={inputClass} value={draft.faseVenta} onChange={e => setDraft(d => ({ ...d, faseVenta: e.target.value }))}>
+                  <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Probabilidad (%)</label>
+                <input className={inputClass} value={draft.probabilidad} onChange={e => setDraft(d => ({ ...d, probabilidad: e.target.value }))} placeholder="40" />
+              </div>
+              <div>
+                <label className={labelClass}>Estado</label>
+                <select className={inputClass} value={draft.estado} onChange={e => setDraft(d => ({ ...d, estado: e.target.value as Lead['estado'] }))}>
+                  {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelClass}>Fecha de inicio</label>
+                <input type="date" className={inputClass} value={dmyToISO(draft.fechaInicio)} onChange={e => setDraft(d => ({ ...d, fechaInicio: isoToDMY(e.target.value) }))} />
+              </div>
+              <div>
+                <label className={labelClass}>Fecha de renovación</label>
+                <input type="date" className={inputClass} value={dmyToISO(draft.fechaRenovacion)} onChange={e => setDraft(d => ({ ...d, fechaRenovacion: isoToDMY(e.target.value) }))} />
+              </div>
+              <div>
+                <label className={labelClass}>Precio (USD) *</label>
+                <input className={inputClass} value={draft.precio || ''} onChange={e => setDraft(d => ({ ...d, precio: Number(e.target.value) || 0 }))} placeholder="5000" />
+              </div>
+              <div>
+                <label className={labelClass}>Abono inicial (USD)</label>
+                <input className={inputClass} value={draft.abono || ''} onChange={e => setDraft(d => ({ ...d, abono: Number(e.target.value) || 0 }))} placeholder="0" />
+              </div>
+              <div>
+                <label className={labelClass}>Prioridad</label>
+                <select className={inputClass} value={draft.prioridad} onChange={e => setDraft(d => ({ ...d, prioridad: e.target.value as Lead['prioridad'] }))}>
+                  {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className={labelClass}>Observación</label>
+                <textarea className={`${inputClass} min-h-[64px] resize-y`} value={draft.observacion} onChange={e => setDraft(d => ({ ...d, observacion: e.target.value }))} placeholder="Notas del primer contacto..." />
+              </div>
+            </div>
+
+            {formError && <div className="px-7 -mt-2 mb-2 text-[12.5px] text-[#D14343] font-semibold">{formError}</div>}
+
+            <div className="flex gap-3 px-7 pb-7">
+              <button onClick={() => setShowAddForm(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
+              <button onClick={submitAddForm} disabled={submitting}
+                className="flex-1 h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                {submitting ? 'Guardando…' : 'Guardar lead'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Detail drawer */}
+      {selectedLead && (
+        <div className="fixed inset-0 z-[9998] bg-[rgba(0,0,0,.5)] flex justify-end" onClick={() => setSelectedId(null)}>
+          <div className="w-[440px] max-w-[92vw] h-full bg-white overflow-y-auto px-7 py-7" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start gap-3">
+              <div className="min-w-0">
+                <div className="font-grotesk font-bold text-[19px] text-[#15171C] truncate">{selectedLead.nombre}</div>
+                <div className="flex gap-2 mt-2">
+                  <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.instagram || '—'}</span>
+                  <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.numero}</span>
+                </div>
+              </div>
+              <button onClick={() => setSelectedId(null)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] flex-shrink-0">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="flex gap-2 mt-5">
+              <a href={waLink(selectedLead.numero)} target="_blank" rel="noopener noreferrer" className="flex-1 text-center py-[10px] rounded-[10px] bg-[#EAF7F1] text-[#1F9B6E] font-bold text-[12.5px] no-underline">Contactar por WhatsApp</a>
+              <a href={mailLink(selectedLead.nombre)} className="flex-1 text-center py-[10px] rounded-[10px] bg-[#F4F6F8] text-[#15171C] font-bold text-[12.5px] no-underline">Enviar correo</a>
+            </div>
+
+            <div className="mt-5">
+              <label className={labelClass}>Estado del lead</label>
+              <select value={selectedLead.estado} onChange={e => patchLead(selectedLead.id, { estado: e.target.value as Lead['estado'] })}
+                style={{ background: ESTADO_STYLE[selectedLead.estado].bg, color: ESTADO_STYLE[selectedLead.estado].color }}
+                className="w-full rounded-[10px] px-3 py-[10px] text-[13px] font-black border-none outline-none cursor-pointer">
+                {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 mt-4">
+              {(
+                [
+                  ['tipoInfoproductor', 'Tipo infoproductor'], ['nicho', 'Nicho'], ['plataformas', 'Plataformas activas'],
+                  ['nps', 'NPS Score'], ['responsable', 'Responsable'],
+                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas' | 'nps' | 'responsable'>, string][]
+              ).map(([field, label]) => (
+                <div key={field} className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                  <div className={labelClass}>{label}</div>
+                  <input defaultValue={selectedLead[field]} onBlur={e => e.target.value !== selectedLead[field] && patchLead(selectedLead.id, { [field]: e.target.value })}
+                    className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
+                </div>
+              ))}
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Plan</div>
+                <select defaultValue={selectedLead.plan} onChange={e => patchLead(selectedLead.id, { plan: e.target.value })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
+                  <option value="Starter">Starter</option><option value="Growth">Growth</option><option value="Premium">Premium</option>
+                </select>
+              </div>
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Fase de venta</div>
+                <select defaultValue={selectedLead.faseVenta} onChange={e => patchLead(selectedLead.id, { faseVenta: e.target.value })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
+                  <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
+                </select>
+              </div>
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Probabilidad</div>
+                <input defaultValue={selectedLead.probabilidad} onBlur={e => e.target.value !== selectedLead.probabilidad && patchLead(selectedLead.id, { probabilidad: e.target.value })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
+              </div>
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Fecha inicio</div>
+                <input type="date" defaultValue={dmyToISO(selectedLead.fechaInicio)} onChange={e => patchLead(selectedLead.id, { fechaInicio: isoToDMY(e.target.value) })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
+              </div>
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Renovación</div>
+                <input type="date" defaultValue={dmyToISO(selectedLead.fechaRenovacion)} onChange={e => patchLead(selectedLead.id, { fechaRenovacion: isoToDMY(e.target.value) })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
+              </div>
+            </div>
+
+            <div className="mt-3 bg-[#F6F8FA] border border-[#EDEFF3] rounded-[12px] p-3.5 grid grid-cols-3 gap-2.5">
+              <div>
+                <div className={labelClass}>Precio</div>
+                <input defaultValue={selectedLead.precio} onBlur={e => patchLead(selectedLead.id, { precio: Number(e.target.value) || 0 })}
+                  className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
+              </div>
+              <div>
+                <div className={labelClass}>Abono</div>
+                <input defaultValue={selectedLead.abono} onBlur={e => patchLead(selectedLead.id, { abono: Number(e.target.value) || 0 })}
+                  className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
+              </div>
+              <div>
+                <div className={labelClass}>Deuda</div>
+                <div className="text-[14px] font-bold mt-0.5" style={{ color: (selectedLead.precio - selectedLead.abono) > 0 ? '#D14343' : '#1F9B6E' }}>
+                  {money(selectedLead.precio - selectedLead.abono)}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className={labelClass}>Prioridad</label>
+              <div className="flex gap-2">
+                {PRIORIDADES.map(p => (
+                  <button key={p} onClick={() => patchLead(selectedLead.id, { prioridad: p })}
+                    style={{
+                      color: selectedLead.prioridad === p ? '#fff' : PRIORIDAD_COLOR[p],
+                      background: selectedLead.prioridad === p ? PRIORIDAD_COLOR[p] : 'transparent',
+                      borderColor: PRIORIDAD_COLOR[p],
+                    }}
+                    className="px-3.5 py-[7px] rounded-[8px] text-[12px] font-bold cursor-pointer border">
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-5">
+              <label className={labelClass}>Observación</label>
+              <textarea defaultValue={selectedLead.observacion} onBlur={e => e.target.value !== selectedLead.observacion && patchLead(selectedLead.id, { observacion: e.target.value })}
+                className="w-full min-h-[80px] bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 text-[13px] text-[#3C434F] leading-[1.5] outline-none resize-y" />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

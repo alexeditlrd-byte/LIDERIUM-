@@ -3,14 +3,20 @@
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
+import PanelComercial from '@/components/PanelComercial';
 
 interface StaffProps {
   onLogout: () => void;
 }
 
-type StaffTab = 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'chatia';
+type StaffTab = 'comercial' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'chatia';
 
 const ICONS: Record<string, React.ReactNode> = {
+  comercial: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
+      <path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 5-6" /><path d="M16 7h3v3" />
+    </svg>
+  ),
   clientes: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
       <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
@@ -41,6 +47,7 @@ const ICONS: Record<string, React.ReactNode> = {
 };
 
 const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
+  { id: 'comercial', label: 'Comercial' },
   { id: 'clientes', label: 'Clientes' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'pagos', label: 'Pagos' },
@@ -49,6 +56,7 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
 ];
 
 const titles: Record<StaffTab, string> = {
+  comercial: 'Panel comercial',
   clientes: 'Gestión de clientes',
   finanzas: 'Finanzas',
   pagos: 'Pagos de clientes',
@@ -454,6 +462,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
         {/* Content */}
         <main className="flex-1 px-4 md:px-[38px] py-5 md:py-[34px] overflow-auto">
+
+          {/* ── COMERCIAL ── */}
+          {tab === 'comercial' && <PanelComercial showToast={showToast} />}
 
           {/* ── CLIENTES ── */}
           {tab === 'clientes' && (
