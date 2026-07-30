@@ -39,10 +39,6 @@ function checkSecret_(body) {
   if (!expected || body.secret !== expected) throw new Error('No autorizado');
 }
 
-function getFinanzasSheet_() {
-  return SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-}
-
 function firstNonEmptyCell_(rowVals) {
   for (var c = 0; c < rowVals.length; c++) {
     var v = rowVals[c];
@@ -59,12 +55,13 @@ function isMonthHeaderRow_(rowVals) {
   return count >= 3;
 }
 
-function readFinanzas_() {
-  const sheet = getFinanzasSheet_();
+// Recorre UNA pestaña y agrega sus filas a `sections`. No asume que las 3
+// secciones estén todas en la misma pestaña: si una pestaña completa es, por
+// ejemplo, solo "Estado de Resultados", igual la detecta.
+function scanSheetInto_(sheet, sections) {
   const values = sheet.getDataRange().getValues();
   const formulas = sheet.getDataRange().getFormulas();
   const numRows = values.length;
-  const sections = { flujo: [], resultados: [], balance: [] };
   let currentSection = null;
   let monthCols = null;
 
@@ -98,8 +95,69 @@ function readFinanzas_() {
         editable: !formula,
       };
     });
-    sections[currentSection].push({ row: r + 1, label: first.text, cells: cells });
+    sections[currentSection].push({ sheet: sheet.getName(), row: r + 1, label: first.text, cells: cells });
   }
+}
+
+// Si NINGUNA pestaña tiene un título de sección reconocible (ej. todo el
+// contenido de "Estado de Resultados" está en una pestaña que se llama
+// distinto, sin ese título como fila), usa el NOMBRE de la pestaña como
+// sección si calza con alguna de las 3.
+function sectionFromSheetName_(name) {
+  for (let i = 0; i < SECTION_DEFS_.length; i++) {
+    if (SECTION_DEFS_[i].match(name)) return SECTION_DEFS_[i].key;
+  }
+  return null;
+}
+
+function readFinanzas_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheets = ss.getSheets();
+  const sections = { flujo: [], resultados: [], balance: [] };
+
+  sheets.forEach(function (sheet) {
+    scanSheetInto_(sheet, sections);
+  });
+
+  const totalFound = sections.flujo.length + sections.resultados.length + sections.balance.length;
+  if (totalFound === 0) {
+    // Nada tenía el título dentro de la pestaña — probá usando el nombre de
+    // cada pestaña como sección, y toma la primera fila de meses que
+    // encuentre como encabezado (sin exigir el título "Estado de...").
+    sheets.forEach(function (sheet) {
+      const key = sectionFromSheetName_(sheet.getName());
+      if (!key) return;
+      const values = sheet.getDataRange().getValues();
+      const formulas = sheet.getDataRange().getFormulas();
+      let monthCols = null;
+      for (let r = 0; r < values.length; r++) {
+        const rowVals = values[r];
+        if (!monthCols && isMonthHeaderRow_(rowVals)) {
+          monthCols = [];
+          for (let c = 0; c < rowVals.length; c++) {
+            const t = String(rowVals[c]).trim().toUpperCase();
+            if (MONTHS_.indexOf(t) !== -1) monthCols.push({ col: c, label: String(rowVals[c]).trim() });
+          }
+          continue;
+        }
+        if (!monthCols) continue;
+        const first = firstNonEmptyCell_(rowVals);
+        if (!first) continue;
+        const cells = monthCols.map(function (mc) {
+          const raw = values[r][mc.col];
+          const formula = formulas[r][mc.col];
+          return {
+            col: mc.col + 1,
+            month: mc.label,
+            value: (raw === '' || raw === null || raw === undefined) ? '' : (typeof raw === 'number' ? raw : String(raw)),
+            editable: !formula,
+          };
+        });
+        sections[key].push({ sheet: sheet.getName(), row: r + 1, label: first.text, cells: cells });
+      }
+    });
+  }
+
   return sections;
 }
 
@@ -113,12 +171,24 @@ function doPost(e) {
       out = Object.assign({ success: true }, readFinanzas_());
 
     } else if (body.action === 'updateCell') {
-      const sheet = getFinanzasSheet_();
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(body.sheet);
+      if (!sheet) throw new Error('No se encontró la pestaña: ' + body.sheet);
       const range = sheet.getRange(body.row, body.col);
       if (range.getFormula()) throw new Error('No se puede editar una celda con fórmula.');
       const num = Number(body.value);
       range.setValue(isNaN(num) || body.value === '' ? body.value : num);
       out = { success: true };
+
+    } else if (body.action === 'debugSheets') {
+      // Acción de diagnóstico: lista las pestañas y sus primeras celdas no vacías.
+      const ss = SpreadsheetApp.getActiveSpreadsheet();
+      out = {
+        success: true,
+        sheets: ss.getSheets().map(function (sh) {
+          const vals = sh.getDataRange().getValues().slice(0, 5);
+          return { name: sh.getName(), rows: sh.getDataRange().getNumRows(), sample: vals };
+        }),
+      };
 
     } else {
       throw new Error('Acción desconocida: ' + body.action);

@@ -24,7 +24,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   const [sections, setSections] = useState<FinanzasSections | null>(null);
   const [loading, setLoading] = useState(true);
   const [configured, setConfigured] = useState(true);
-  const [editing, setEditing] = useState<{ row: number; col: number } | null>(null);
+  const [editing, setEditing] = useState<{ sheet: string; row: number; col: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const savingRef = useRef(false);
 
@@ -43,23 +43,23 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startEdit = (row: number, col: number, current: string | number) => {
-    setEditing({ row, col });
+  const startEdit = (sheet: string, row: number, col: number, current: string | number) => {
+    setEditing({ sheet, row, col });
     setEditValue(current === '' || current === null || current === undefined ? '' : String(current));
   };
 
   const commitEdit = async () => {
     if (!editing || savingRef.current) return;
-    const { row, col } = editing;
+    const { sheet, row, col } = editing;
     savingRef.current = true;
     const prevSections = sections;
-    setSections(s => s && applyLocalEdit(s, row, col, editValue));
+    setSections(s => s && applyLocalEdit(s, sheet, row, col, editValue));
     setEditing(null);
     try {
       const res = await fetch('/api/finanzas', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ row, col, value: editValue }),
+        body: JSON.stringify({ sheet, row, col, value: editValue }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -70,9 +70,9 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     savingRef.current = false;
   };
 
-  function applyLocalEdit(s: FinanzasSections, row: number, col: number, value: string): FinanzasSections {
+  function applyLocalEdit(s: FinanzasSections, sheet: string, row: number, col: number, value: string): FinanzasSections {
     const patchRows = (rows: FinanzasRow[]) => rows.map(r => (
-      r.row === row ? { ...r, cells: r.cells.map(c => (c.col === col ? { ...c, value } : c)) } : r
+      r.sheet === sheet && r.row === row ? { ...r, cells: r.cells.map(c => (c.col === col ? { ...c, value } : c)) } : r
     ));
     return { flujo: patchRows(s.flujo), resultados: patchRows(s.resultados), balance: patchRows(s.balance) };
   }
@@ -113,10 +113,10 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
                 </thead>
                 <tbody>
                   {rows.map(r => (
-                    <tr key={r.row} className="hover:bg-[#FAFBFC] transition">
+                    <tr key={r.sheet + '-' + r.row} className="hover:bg-[#FAFBFC] transition">
                       <td className="sticky left-0 bg-white text-[13px] font-semibold text-[#15171C] px-4 py-2 border-b border-[#F5F6F8] truncate" style={{ width: 220 }}>{r.label}</td>
                       {r.cells.map(c => {
-                        const isEditing = editing?.row === r.row && editing?.col === c.col;
+                        const isEditing = editing?.sheet === r.sheet && editing?.row === r.row && editing?.col === c.col;
                         return (
                           <td key={c.col} className="text-right px-3 py-2 border-b border-[#F5F6F8]" style={{ width: 110 }}>
                             {isEditing ? (
@@ -129,7 +129,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
                                 className="w-full text-right text-[12.5px] font-semibold text-[#15171C] border border-steel rounded-[6px] px-1.5 py-1 outline-none"
                               />
                             ) : c.editable ? (
-                              <button onClick={() => startEdit(r.row, c.col, c.value)}
+                              <button onClick={() => startEdit(r.sheet, r.row, c.col, c.value)}
                                 className="w-full text-right text-[12.5px] font-semibold text-[#3C434F] bg-transparent border-none cursor-pointer hover:text-steel px-1 py-0.5 rounded-[6px] hover:bg-[#F4F6F8] transition">
                                 {formatValue(c.value) || '—'}
                               </button>

@@ -17,10 +17,10 @@ export async function PATCH(req: NextRequest) {
   if (!financeSheetConfigured()) {
     return NextResponse.json({ error: 'El Google Sheet de finanzas todavía no está conectado (falta GOOGLE_FINANZAS_WEBHOOK_URL).' }, { status: 503 });
   }
-  const { row, col, value } = await req.json();
-  if (!row || !col) return NextResponse.json({ error: 'Falta row o col' }, { status: 400 });
+  const { sheet, row, col, value } = await req.json();
+  if (!sheet || !row || !col) return NextResponse.json({ error: 'Falta sheet, row o col' }, { status: 400 });
   try {
-    await updateFinanzasCell(row, col, value);
+    await updateFinanzasCell(sheet, row, col, value);
     return NextResponse.json({ success: true });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? 'Error al actualizar la celda en el Google Sheet' }, { status: 502 });

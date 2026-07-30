@@ -9,6 +9,7 @@ export interface FinanzasCell {
 }
 
 export interface FinanzasRow {
+  sheet: string;
   row: number;
   label: string;
   cells: FinanzasCell[];
@@ -51,6 +52,6 @@ export async function listFinanzas(): Promise<FinanzasSections> {
   };
 }
 
-export async function updateFinanzasCell(row: number, col: number, value: string | number): Promise<void> {
-  await callWebhook({ action: 'updateCell', row, col, value });
+export async function updateFinanzasCell(sheet: string, row: number, col: number, value: string | number): Promise<void> {
+  await callWebhook({ action: 'updateCell', sheet, row, col, value });
 }
