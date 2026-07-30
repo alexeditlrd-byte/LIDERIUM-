@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
+import PanelFinanzas from '@/components/PanelFinanzas';
 
 interface StaffProps {
   onLogout: () => void;
@@ -69,24 +70,6 @@ const titles: Record<StaffTab, string> = {
   calendario: 'Calendario de reuniones',
   chatia: 'Asistente IA · Claude',
 };
-
-const finKpis = [
-  { label: 'Ingresos del mes', value: 'S/ 48.2K', delta: '+5.7%', up: true },
-  { label: 'Gastos del mes', value: 'S/ 35.6K', delta: '+2.1%', up: false },
-  { label: 'Utilidad neta', value: 'S/ 12.6K', delta: '+18%', up: true },
-  { label: 'Margen neto', value: '26.1%', delta: '+3.4 pts', up: true },
-];
-
-const incomeRows = [
-  { label: 'Ingresos por servicios', value: 'S/ 48,200', kind: 'in' },
-  { label: 'Edición y freelance', value: '— S/ 9,400', kind: 'cost' },
-  { label: 'Software y herramientas', value: '— S/ 2,100', kind: 'cost' },
-  { label: 'Utilidad bruta', value: 'S/ 36,700', kind: 'subtotal' },
-  { label: 'Sueldos del equipo', value: '— S/ 18,500', kind: 'cost' },
-  { label: 'Oficina y servicios', value: '— S/ 3,200', kind: 'cost' },
-  { label: 'Marketing y captación', value: '— S/ 2,400', kind: 'cost' },
-  { label: 'Utilidad neta', value: 'S/ 12,600', kind: 'total' },
-];
 
 const meetings = [
   { day: 'Hoy · Mar 17', time: '10:00', client: 'Aurora Café', type: 'Revisión de contenido', who: 'Mateo', c: '#2E6CA0' },
@@ -1041,100 +1024,7 @@ export default function Staff({ onLogout }: StaffProps) {
           )}
 
           {/* ── FINANZAS ── */}
-          {tab === 'finanzas' && (
-            <div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                {finKpis.map((kpi, i) => (
-                  <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
-                    <div className="text-[13px] text-[#8A929E] font-bold mb-[10px]">{kpi.label}</div>
-                    <div className="flex items-baseline gap-[9px]">
-                      <div className="font-grotesk font-bold text-[27px] tracking-[-0.02em] text-[#15171C]">{kpi.value}</div>
-                      <div className="font-black text-[13px]" style={{ color: kpi.up ? '#2FB389' : '#D14343' }}>
-                        {kpi.up ? '▲' : '▼'} {kpi.delta}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-[1fr_1.15fr] gap-4">
-                {/* Estado de resultados */}
-                <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-6 py-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="font-grotesk font-semibold text-[18px] text-[#15171C]">Estado de resultados</h3>
-                    <span className="text-[12.5px] font-bold text-[#8A929E]">Junio 2026</span>
-                  </div>
-                  <div className="flex flex-col">
-                    {incomeRows.map((row, i) => {
-                      const isTotal = row.kind === 'total';
-                      const isSubtotal = row.kind === 'subtotal';
-                      const isIn = row.kind === 'in';
-                      return (
-                        <div
-                          key={i}
-                          className="flex justify-between items-center py-[11px]"
-                          style={{
-                            borderTop: (isTotal || isSubtotal) ? `${isTotal ? 2 : 1}px solid ${isTotal ? '#15171C' : '#E7E9EE'}` : 'none',
-                            marginTop: (isTotal || isSubtotal) ? '4px' : 0,
-                          }}
-                        >
-                          <span
-                            className="font-semibold text-[14px]"
-                            style={{ color: isTotal || isSubtotal ? '#15171C' : '#6A7280', fontWeight: isTotal || isSubtotal ? 700 : 600 }}
-                          >
-                            {row.label}
-                          </span>
-                          <span
-                            style={{
-                              color: isTotal ? '#15171C' : isIn ? '#1F9B6E' : '#6A7280',
-                              fontWeight: isTotal ? 700 : isSubtotal ? 800 : 600,
-                              fontSize: isTotal ? '20px' : isSubtotal ? '15px' : '14px',
-                              fontFamily: isTotal ? 'var(--font-grotesk, Space Grotesk)' : 'inherit',
-                            }}
-                          >
-                            {row.value}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  <button className="w-full mt-[18px] flex items-center justify-center gap-2 bg-[#F4F6F8] border border-[#E7E9EE] text-[#3C434F] font-bold text-[13.5px] px-3 py-[11px] rounded-[11px] cursor-pointer hover:border-[#15171C] transition">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 3v12" /><path d="M7 10l5 5 5-5" /><path d="M5 21h14" />
-                    </svg>
-                    Exportar reporte (PDF)
-                  </button>
-                </div>
-
-                {/* Revenue chart */}
-                <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-6 py-6">
-                  <h3 className="font-grotesk font-semibold text-[18px] mb-1 text-[#15171C]">Ingresos mensuales</h3>
-                  <p className="text-[#9AA0A8] text-[12.5px] font-semibold mb-[14px]">Últimos 8 meses (miles de S/)</p>
-                  <svg viewBox="0 0 560 200" className="w-full h-auto mb-4">
-                    <defs>
-                      <linearGradient id="rvg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0" stopColor="#2FB389" stopOpacity="0.24" />
-                        <stop offset="1" stopColor="#2FB389" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                    <polygon points="18,185 18,162 88,148 158,133 228,117 298,97 368,74 438,46 542,22 542,185" fill="url(#rvg)" />
-                    <polyline points="18,162 88,148 158,133 228,117 298,97 368,74 438,46 542,22" fill="none" stroke="#2FB389" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-                    <circle cx="542" cy="22" r="5" fill="white" stroke="#2FB389" strokeWidth="2.8" />
-                  </svg>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-[#F6F8FA] rounded-[14px] px-4 py-[15px]">
-                      <div className="text-[12px] text-[#8A929E] font-bold">Ticket promedio</div>
-                      <div className="font-grotesk font-bold text-[20px] mt-0.5 text-[#15171C]">S/ 2,680</div>
-                    </div>
-                    <div className="bg-[#F6F8FA] rounded-[14px] px-4 py-[15px]">
-                      <div className="text-[12px] text-[#8A929E] font-bold">Clientes activos</div>
-                      <div className="font-grotesk font-bold text-[20px] mt-0.5 text-[#15171C]">6</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {tab === 'finanzas' && <PanelFinanzas showToast={showToast} />}
 
           {/* ── PAGOS ── */}
           {tab === 'pagos' && (
