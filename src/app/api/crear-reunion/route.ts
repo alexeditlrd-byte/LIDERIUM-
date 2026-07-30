@@ -11,6 +11,7 @@ export async function POST(req: NextRequest) {
   // Crear evento en Google Calendar vía Apps Script → Meet link automático
   const scriptUrl = process.env.GOOGLE_SCRIPT_URL;
   let meetLink = '';
+  let eventId = '';
   if (!scriptUrl) {
     console.error('[crear-reunion] GOOGLE_SCRIPT_URL no está configurado');
   } else {
@@ -35,6 +36,7 @@ export async function POST(req: NextRequest) {
       }
       if (data.error) console.error('[crear-reunion] el Apps Script devolvió error:', data.error);
       meetLink = (data.meetLink as string) ?? '';
+      eventId = (data.eventId as string) ?? '';
       if (!meetLink) console.error('[crear-reunion] sin meetLink en la respuesta. status:', res.status, 'body:', text.slice(0, 500));
     } catch (e) {
       console.error('[crear-reunion] fetch al Apps Script falló:', e instanceof Error ? e.message : String(e));
@@ -55,6 +57,7 @@ export async function POST(req: NextRequest) {
       scheduled_at: scheduledAt,
       duration_minutes: durationMinutes ?? 45,
       meet_link: meetLink,
+      event_id: eventId,
       status: 'Agendada',
     })
     .select()

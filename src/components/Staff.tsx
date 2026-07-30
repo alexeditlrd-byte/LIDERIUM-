@@ -229,6 +229,50 @@ export default function Staff({ onLogout }: StaffProps) {
     fetch('/api/reuniones').then(r => r.json()).then(d => setReuniones(d.meetings ?? [])).catch(() => {});
   };
 
+  const [reschedule, setReschedule] = useState<{ id: string; fecha: string; hora: string } | null>(null);
+  const [reschedulingBusy, setReschedulingBusy] = useState(false);
+  const [cancelingId, setCancelingId] = useState<string | null>(null);
+
+  const openReschedule = (m: any) => {
+    const d = new Date(m.scheduled_at);
+    const fecha = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const hora = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    setReschedule({ id: m.id, fecha, hora });
+  };
+
+  const submitReschedule = async () => {
+    if (!reschedule) return;
+    setReschedulingBusy(true);
+    const res = await fetch('/api/reuniones', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: reschedule.id, fecha: reschedule.fecha, hora: reschedule.hora }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Reunión reprogramada');
+      setReschedule(null);
+      loadReuniones();
+    } else {
+      showToast(data.error ?? 'Error al reprogramar', false);
+    }
+    setReschedulingBusy(false);
+  };
+
+  const handleDeleteMeeting = async (m: any) => {
+    if (!confirm(`¿Cancelar la reunión "${m.title}"? Se notificará al invitado.`)) return;
+    setCancelingId(m.id);
+    const res = await fetch(`/api/reuniones?id=${m.id}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Reunión cancelada');
+      loadReuniones();
+    } else {
+      showToast(data.error ?? 'Error al cancelar', false);
+    }
+    setCancelingId(null);
+  };
+
   const [comercialLeads, setComercialLeads] = useState<Lead[]>([]);
   const loadComercialLeads = () => {
     fetch('/api/leads').then(r => r.json()).then(d => setComercialLeads(d.leads ?? [])).catch(() => {});
@@ -1117,11 +1161,50 @@ export default function Staff({ onLogout }: StaffProps) {
                         ) : (
                           <span className="text-[12px] font-semibold text-[#C2C8D2] flex-shrink-0">Sin link</span>
                         )}
+                        <button onClick={() => openReschedule(m)} title="Reprogramar"
+                          className="w-9 h-9 flex items-center justify-center rounded-[10px] bg-[#F4F6F8] border border-[#E2E5EA] text-[#5A6270] cursor-pointer hover:border-steel hover:text-steel transition flex-shrink-0">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="17" rx="2.5" /><path d="M3 9h18M8 2v4M16 2v4" /><path d="M12 13v4M10 15h4" /></svg>
+                        </button>
+                        <button onClick={() => handleDeleteMeeting(m)} disabled={cancelingId === m.id} title="Cancelar reunión"
+                          className="w-9 h-9 flex items-center justify-center rounded-[10px] bg-[#F4F6F8] border border-[#E2E5EA] text-[#5A6270] cursor-pointer hover:border-[#D14343] hover:text-[#D14343] transition flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                        </button>
                       </div>
                     );
                   })
                 )}
               </div>
+
+              {reschedule && (
+              <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!reschedulingBusy) setReschedule(null); }}>
+                <div className="bg-white rounded-[22px] w-full max-w-[400px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5]">
+                    <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Reprogramar reunión</div>
+                    <button onClick={() => setReschedule(null)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                  <div className="px-7 py-6 flex flex-col gap-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Fecha</label>
+                        <input type="date" value={reschedule.fecha} onChange={e => setReschedule(r => r && ({ ...r, fecha: e.target.value }))}
+                          className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Hora</label>
+                        <input type="time" value={reschedule.hora} onChange={e => setReschedule(r => r && ({ ...r, hora: e.target.value }))}
+                          className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                      </div>
+                    </div>
+                    <button onClick={submitReschedule} disabled={reschedulingBusy}
+                      className="w-full h-12 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[15px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                      {reschedulingBusy ? 'Guardando…' : 'Guardar cambios'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
             </div>
           )}
 
