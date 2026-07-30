@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .from('guias')
-    .select('*')
-    .order('uploaded_at', { ascending: false });
+  const [{ data: guiasData, error: guiasError }, { data: foldersData, error: foldersError }] = await Promise.all([
+    supabaseAdmin.from('guias').select('*').order('uploaded_at', { ascending: false }),
+    supabaseAdmin.from('guia_folders').select('*').order('name', { ascending: true }),
+  ]);
 
-  if (error) return NextResponse.json({ guias: [] });
-
-  const guias = (data ?? []).map((g) => ({
+  const guias = guiasError ? [] : (guiasData ?? []).map((g) => ({
     id: g.id,
     label: g.label,
     fileName: g.file_name,
@@ -17,9 +15,16 @@ export async function GET() {
     mimeType: g.mime_type,
     uploadedBy: g.uploaded_by,
     uploadedAt: g.uploaded_at,
+    folderId: g.folder_id,
   }));
 
-  return NextResponse.json({ guias });
+  const folders = foldersError ? [] : (foldersData ?? []).map((f) => ({
+    id: f.id,
+    name: f.name,
+    createdAt: f.created_at,
+  }));
+
+  return NextResponse.json({ guias, folders });
 }
 
 export async function DELETE(req: NextRequest) {
