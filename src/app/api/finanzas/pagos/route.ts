@@ -36,9 +36,19 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { leadId, clienteNombre, monto, fecha, nota } = await req.json();
+  const { leadId, clienteNombre, monto, fecha, nota, precio } = await req.json();
   if (!leadId || !clienteNombre || !monto || !fecha) {
     return NextResponse.json({ error: 'Faltan campos: cliente, monto y fecha son obligatorios.' }, { status: 400 });
+  }
+  if (!(Number(monto) > 0)) {
+    return NextResponse.json({ error: 'El monto del abono debe ser mayor a 0.' }, { status: 400 });
+  }
+  if (typeof precio === 'number' && precio >= 0) {
+    const { data: existing } = await supabaseAdmin.from('finanzas_pagos').select('monto').eq('lead_id', leadId);
+    const yaAbonado = (existing ?? []).reduce((s, p) => s + Number(p.monto || 0), 0);
+    if (yaAbonado + Number(monto) > precio) {
+      return NextResponse.json({ error: `El abono no puede superar el saldo pendiente (${precio - yaAbonado}).` }, { status: 400 });
+    }
   }
   const { data, error } = await supabaseAdmin
     .from('finanzas_pagos')

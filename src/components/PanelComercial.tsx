@@ -125,12 +125,16 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   const submitPago = async (lead: Lead) => {
     if (!pagoMonto || !pagoFecha) { showToast('Completa el monto y la fecha del abono.', false); return; }
+    const monto = Number(pagoMonto);
+    if (!(monto > 0)) { showToast('El monto del abono debe ser mayor a 0.', false); return; }
+    const saldoPendiente = lead.precio - lead.abono;
+    if (monto > saldoPendiente) { showToast(`El abono no puede superar el saldo pendiente (${money(saldoPendiente)}).`, false); return; }
     setSavingPago(true);
     try {
       const res = await fetch('/api/finanzas/pagos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leadId: lead.id, clienteNombre: lead.nombre, monto: Number(pagoMonto), fecha: pagoFecha, nota: pagoNota }),
+        body: JSON.stringify({ leadId: lead.id, clienteNombre: lead.nombre, monto, fecha: pagoFecha, nota: pagoNota, precio: lead.precio }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -251,7 +255,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           const pagoRes = await fetch('/api/finanzas/pagos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ leadId: data.lead.id, clienteNombre: draft.nombre, monto: draft.abono, fecha, nota: 'Abono inicial' }),
+            body: JSON.stringify({ leadId: data.lead.id, clienteNombre: draft.nombre, monto: draft.abono, fecha, nota: 'Abono inicial', precio: draft.precio }),
           });
           const pagoData = await pagoRes.json();
           if (pagoRes.ok) setAllPagos(p => [pagoData.pago, ...p]);
@@ -538,10 +542,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <label className={labelClass}>Precio (USD) *</label>
                 <input className={inputClass} value={draft.precio || ''} onChange={e => setDraft(d => ({ ...d, precio: Number(e.target.value) || 0 }))} placeholder="5000" />
               </div>
-              <div>
-                <label className={labelClass}>Abono inicial (USD)</label>
-                <input className={inputClass} value={draft.abono || ''} onChange={e => setDraft(d => ({ ...d, abono: Number(e.target.value) || 0 }))} placeholder="0" />
-              </div>
+              {draft.faseVenta === 'Cierre' && (
+                <div>
+                  <label className={labelClass}>Abono inicial (USD)</label>
+                  <input className={inputClass} value={draft.abono || ''} onChange={e => setDraft(d => ({ ...d, abono: Number(e.target.value) || 0 }))} placeholder="0" />
+                </div>
+              )}
               <div>
                 <label className={labelClass}>Prioridad</label>
                 <select className={inputClass} value={draft.prioridad} onChange={e => setDraft(d => ({ ...d, prioridad: e.target.value as Lead['prioridad'] }))}>
@@ -648,68 +654,80 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
             </div>
 
-            <div className="mt-3 bg-[#F6F8FA] border border-[#EDEFF3] rounded-[12px] p-3.5 grid grid-cols-3 gap-2.5">
-              <div>
-                <div className={labelClass}>Precio</div>
+            {selectedLead.faseVenta === 'Cierre' ? (
+              <div className="mt-3 bg-[#F6F8FA] border border-[#EDEFF3] rounded-[12px] p-3.5 grid grid-cols-3 gap-2.5">
+                <div>
+                  <div className={labelClass}>Precio</div>
+                  <input defaultValue={selectedLead.precio} onBlur={e => patchLead(selectedLead.id, { precio: Number(e.target.value) || 0 })}
+                    className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
+                </div>
+                <div>
+                  <div className={labelClass}>Abonado</div>
+                  <div className="text-[14px] font-bold mt-0.5 text-[#15171C]">{money(selectedLead.abono)}</div>
+                </div>
+                <div>
+                  <div className={labelClass}>Saldo pendiente</div>
+                  {selectedLead.precio - selectedLead.abono <= 0 && selectedLead.precio > 0 ? (
+                    <div className="text-[12px] font-bold mt-1 text-[#1F9B6E]">✓ Pagado completo</div>
+                  ) : (
+                    <div className="text-[14px] font-bold mt-0.5 text-[#D14343]">{money(selectedLead.precio - selectedLead.abono)}</div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-3 bg-[#F6F8FA] border border-[#EDEFF3] rounded-[12px] p-3.5">
+                <div className={labelClass}>Precio (estimado)</div>
                 <input defaultValue={selectedLead.precio} onBlur={e => patchLead(selectedLead.id, { precio: Number(e.target.value) || 0 })}
                   className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
               </div>
-              <div>
-                <div className={labelClass}>Abonado</div>
-                <div className="text-[14px] font-bold mt-0.5 text-[#15171C]">{money(selectedLead.abono)}</div>
-              </div>
-              <div>
-                <div className={labelClass}>Deuda</div>
-                <div className="text-[14px] font-bold mt-0.5" style={{ color: (selectedLead.precio - selectedLead.abono) > 0 ? '#D14343' : '#1F9B6E' }}>
-                  {money(selectedLead.precio - selectedLead.abono)}
-                </div>
-              </div>
-            </div>
+            )}
 
-            <div className="mt-3">
-              <div className="flex items-center justify-between mb-2">
-                <label className={labelClass}>Historial de abonos</label>
-                {selectedLead.faseVenta === 'Cierre' && (
-                  <button onClick={() => setShowPagoForm(s => !s)} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0">
-                    {showPagoForm ? 'Cancelar' : '+ Registrar abono'}
-                  </button>
+            {selectedLead.faseVenta === 'Cierre' && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className={labelClass}>Historial de abonos</label>
+                  {selectedLead.precio > 0 ? (
+                    <button onClick={() => setShowPagoForm(s => !s)} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0">
+                      {showPagoForm ? 'Cancelar' : '+ Registrar abono'}
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-[#AEB4BE] font-semibold">Define el precio primero</span>
+                  )}
+                </div>
+                {showPagoForm && (
+                  <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 mb-2 flex flex-col gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="Monto (USD)"
+                        className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" />
+                      <input type="date" value={pagoFecha} onChange={e => setPagoFecha(e.target.value)}
+                        className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" style={{ colorScheme: 'light' }} />
+                    </div>
+                    <input value={pagoNota} onChange={e => setPagoNota(e.target.value)} placeholder="Nota (opcional)"
+                      className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" />
+                    <div className="text-[11px] text-[#9AA0A8] font-semibold">Saldo pendiente actual: {money(selectedLead.precio - selectedLead.abono)}</div>
+                    <button onClick={() => submitPago(selectedLead)} disabled={savingPago}
+                      className="h-9 bg-[#1F9B6E] text-white border-none rounded-[8px] font-bold text-[12.5px] cursor-pointer hover:bg-[#188058] transition disabled:opacity-60">
+                      {savingPago ? 'Guardando…' : 'Guardar abono'}
+                    </button>
+                  </div>
+                )}
+                {leadPagos.length === 0 ? (
+                  <div className="text-[12px] text-[#C2C8D2] font-semibold py-2">Sin abonos registrados.</div>
+                ) : (
+                  <div className="flex flex-col gap-1.5">
+                    {leadPagos.map(p => (
+                      <div key={p.id} className="flex items-center justify-between gap-2 bg-white border border-[#F0F2F5] rounded-[8px] px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-bold text-[#15171C]">{money(p.monto)}</div>
+                          <div className="text-[11px] text-[#9AA0A8] font-semibold">{p.fecha.split('-').reverse().join('/')}{p.nota ? ` · ${p.nota}` : ''}</div>
+                        </div>
+                        <button onClick={() => deletePago(p, selectedLead)} title="Eliminar" className="text-[#C2C8D2] hover:text-[#D14343] bg-transparent border-none cursor-pointer text-[12px] font-bold flex-shrink-0">✕</button>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              {selectedLead.faseVenta !== 'Cierre' && (
-                <div className="text-[12px] text-[#AEB4BE] font-semibold mb-2">Solo se pueden registrar abonos cuando la fase de venta es &quot;Cierre&quot;.</div>
-              )}
-              {showPagoForm && (
-                <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 mb-2 flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="Monto (USD)"
-                      className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" />
-                    <input type="date" value={pagoFecha} onChange={e => setPagoFecha(e.target.value)}
-                      className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" style={{ colorScheme: 'light' }} />
-                  </div>
-                  <input value={pagoNota} onChange={e => setPagoNota(e.target.value)} placeholder="Nota (opcional)"
-                    className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" />
-                  <button onClick={() => submitPago(selectedLead)} disabled={savingPago}
-                    className="h-9 bg-[#1F9B6E] text-white border-none rounded-[8px] font-bold text-[12.5px] cursor-pointer hover:bg-[#188058] transition disabled:opacity-60">
-                    {savingPago ? 'Guardando…' : 'Guardar abono'}
-                  </button>
-                </div>
-              )}
-              {leadPagos.length === 0 ? (
-                <div className="text-[12px] text-[#C2C8D2] font-semibold py-2">Sin abonos registrados.</div>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {leadPagos.map(p => (
-                    <div key={p.id} className="flex items-center justify-between gap-2 bg-white border border-[#F0F2F5] rounded-[8px] px-3 py-2">
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-bold text-[#15171C]">{money(p.monto)}</div>
-                        <div className="text-[11px] text-[#9AA0A8] font-semibold">{p.fecha.split('-').reverse().join('/')}{p.nota ? ` · ${p.nota}` : ''}</div>
-                      </div>
-                      <button onClick={() => deletePago(p, selectedLead)} title="Eliminar" className="text-[#C2C8D2] hover:text-[#D14343] bg-transparent border-none cursor-pointer text-[12px] font-bold flex-shrink-0">✕</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="mt-5">
               <label className={labelClass}>Prioridad</label>
