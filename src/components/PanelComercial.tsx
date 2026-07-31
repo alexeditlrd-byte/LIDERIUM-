@@ -223,6 +223,21 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       setLeads(ls => [data.lead, ...ls]);
       setShowAddForm(false);
       showToast(`Lead ${draft.nombre} guardado en el Google Sheet`);
+
+      // Si ya viene con abono y está en fase Cierre, lo registramos de una
+      // vez como pago con fecha (para que aparezca automático en Finanzas).
+      if (draft.abono > 0 && draft.faseVenta === 'Cierre') {
+        const fecha = dmyToISO(draft.fechaInicio) || todayISO();
+        try {
+          await fetch('/api/finanzas/pagos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leadId: data.lead.id, clienteNombre: draft.nombre, monto: draft.abono, fecha, nota: 'Abono inicial' }),
+          });
+        } catch {
+          showToast('El lead se creó, pero no se pudo registrar el abono inicial en Finanzas.', false);
+        }
+      }
     } catch (e) {
       setFormError(e instanceof Error ? e.message : 'Error al guardar el lead.');
     }
