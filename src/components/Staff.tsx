@@ -11,7 +11,7 @@ interface StaffProps {
   onLogout: () => void;
 }
 
-type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'chatia';
+type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario';
 
 const ICONS: Record<string, React.ReactNode> = {
   comercial: (
@@ -45,12 +45,6 @@ const ICONS: Record<string, React.ReactNode> = {
       <rect x="3" y="4" width="18" height="17" rx="2.5" /><path d="M3 9h18M8 2v4M16 2v4" />
     </svg>
   ),
-  chatia: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
-      <path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6z" />
-      <path d="M19 14l.8 2.2L22 17l-2.2.8L19 20l-.8-2.2L16 17l2.2-.8z" />
-    </svg>
-  ),
 };
 
 const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
@@ -58,7 +52,6 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'guia', label: 'Guía' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
-  { id: 'chatia', label: 'Chat IA · Claude', founderOnly: true },
 ];
 
 const titles: Record<StaffTab, string> = {
@@ -68,7 +61,6 @@ const titles: Record<StaffTab, string> = {
   finanzas: 'Finanzas',
   pagos: 'Pagos de clientes',
   calendario: 'Calendario de reuniones',
-  chatia: 'Asistente IA · Claude',
 };
 
 const meetings = [
@@ -78,15 +70,6 @@ const meetings = [
   { day: 'Jue 19', time: '17:00', client: 'Aurora Café', type: 'Reunión de estrategia', who: 'Mateo', c: '#2E6CA0' },
   { day: 'Vie 20', time: '11:00', client: 'Verde Market', type: 'Kickoff de campaña', who: 'Lucía', c: '#C9821F' },
 ];
-
-const quickPrompts = [
-  'Escríbeme un guion de reel de 30s para una cafetería de especialidad',
-  'Dame 5 ideas de contenido viral para esta semana',
-  'Sugiere un calendario de contenido semanal para una marca de fitness',
-  'Dame feedback para mejorar la retención de un reel de producto',
-];
-
-type AiMsg = { role: 'user' | 'assistant'; text: string };
 
 function statusPill(status: string) {
   if (status === 'Al día') return { bg: '#EAF7F1', color: '#1F9B6E' };
@@ -442,41 +425,6 @@ export default function Staff({ onLogout }: StaffProps) {
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
   }, []);
-  const [aiInput, setAiInput] = useState('');
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiMsgs, setAiMsgs] = useState<AiMsg[]>([
-    { role: 'assistant', text: '¡Hola equipo! Soy el asistente de Liderium conectado a Claude. Pídeme un guion de reel, una idea de estrategia, un calendario semanal o feedback de un video y lo preparo al instante.' },
-  ]);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [aiMsgs, aiLoading]);
-
-  const sendMsg = async (text?: string) => {
-    const q = (text ?? aiInput).trim();
-    if (!q || aiLoading) return;
-    setAiMsgs((m) => [...m, { role: 'user', text: q }]);
-    setAiInput('');
-    setAiLoading(true);
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: q }),
-      });
-      const data = await res.json();
-      setAiMsgs((m) => [...m, { role: 'assistant', text: data.reply || 'Sin respuesta.' }]);
-    } catch {
-      setAiMsgs((m) => [...m, { role: 'assistant', text: 'No pude conectar con Claude en este momento. Verifica la configuración del servidor.' }]);
-    }
-    setAiLoading(false);
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
-  };
-
   return (
     <div className="relative min-h-screen bg-[#F5F6F8] md:grid md:overflow-hidden" style={{ gridTemplateColumns: '256px 1fr' }}>
 
@@ -1379,102 +1327,6 @@ export default function Staff({ onLogout }: StaffProps) {
             </div>
           )}
 
-          {/* ── CHAT IA ── */}
-          {tab === 'chatia' && (
-            <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 280px' }}>
-              {/* Chat window */}
-              <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden flex flex-col" style={{ height: '620px' }}>
-                <div className="flex items-center gap-3 px-6 py-[18px] border-b border-[#F0F2F5]">
-                  <div className="w-[42px] h-[42px] rounded-[12px] bg-gradient-to-br from-[#15171C] to-[#2E6CA0] flex items-center justify-center flex-shrink-0">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2l1.6 4.4L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.6z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <div className="font-bold text-[15px] text-[#15171C]">Asistente Liderium</div>
-                    <div className="text-[12.5px] text-[#8A929E] font-semibold">Conectado a Claude · guiones, estrategia y feedback</div>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-4 bg-[#FAFBFC]">
-                  {aiMsgs.map((m, i) => {
-                    const isUser = m.role === 'user';
-                    return (
-                      <div key={i} className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className="max-w-[80%] px-4 py-3 whitespace-pre-wrap text-[14.5px] leading-[1.55]"
-                          style={{
-                            background: isUser ? '#15171C' : '#fff',
-                            color: isUser ? '#fff' : '#15171C',
-                            borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                            border: isUser ? 'none' : '1px solid #ECEEF2',
-                          }}
-                        >
-                          <div className="text-[11px] font-black mb-1 opacity-60">{isUser ? 'Tú' : 'Asistente Liderium'}</div>
-                          {m.text}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {aiLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white border border-[#ECEEF2] text-[#15171C] px-4 py-3 rounded-[16px] rounded-bl-[4px] text-[14.5px] text-[#9AA0A8]">
-                        <div className="text-[11px] font-black mb-1 opacity-60">Asistente Liderium</div>
-                        Escribiendo…
-                      </div>
-                    </div>
-                  )}
-                  <div ref={chatEndRef} />
-                </div>
-
-                <div className="flex gap-[10px] px-6 py-4 border-t border-[#F0F2F5]">
-                  <input
-                    type="text"
-                    value={aiInput}
-                    onChange={(e) => setAiInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Pídele un guion, una estrategia, feedback…"
-                    className="flex-1 h-12 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
-                  />
-                  <button
-                    onClick={() => sendMsg()}
-                    disabled={aiLoading || !aiInput.trim()}
-                    className="h-12 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer flex items-center gap-2 font-bold text-[14px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Enviar
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4z" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-
-              {/* Sidebar */}
-              <div className="flex flex-col gap-3">
-                <div className="bg-white border border-[#ECEEF2] rounded-[18px] px-[18px] py-[18px]">
-                  <div className="text-[12px] font-black tracking-[0.05em] uppercase text-[#2E6CA0] mb-3">Prompts rápidos</div>
-                  <div className="flex flex-col gap-[9px]">
-                    {quickPrompts.map((prompt, i) => (
-                      <button
-                        key={i}
-                        onClick={() => sendMsg(prompt)}
-                        className="text-left bg-[#F6F8FA] border border-[#EDEFF3] text-[#3C434F] font-semibold text-[13px] leading-[1.4] px-[13px] py-[11px] rounded-[11px] cursor-pointer hover:border-steel hover:bg-white transition"
-                      >
-                        {prompt}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-gradient-to-br from-[#15171C] to-[#2E6CA0] rounded-[18px] px-[18px] py-[18px] text-white">
-                  <div className="text-[12px] font-black uppercase tracking-[0.05em] text-[#9fc3e3] mb-2">Configurado con Claude</div>
-                  <p className="text-[13.5px] leading-[1.55] text-[#cfd4db] m-0">
-                    El equipo promea desde aquí mismo, sin salir de la plataforma.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
         </main>
       </div>
     </div>
