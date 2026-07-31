@@ -97,20 +97,16 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   const cerradoIds = useMemo(() => new Set(leads.filter(l => l.faseVenta === 'Cierre').map(l => l.id)), [leads]);
   const planPorLead = useMemo(() => new Map(leads.map(l => [l.id, l.plan])), [leads]);
 
-  // Meses disponibles en el selector: desde el mes de inicio configurado hasta
-  // 12 meses después del más reciente que tenga datos (o el actual, lo que sea mayor).
+  // Meses disponibles en el selector: un rango fijo (año anterior, actual y
+  // siguiente), igual que en Comercial — no depende de si ya hay datos ahí.
   const monthOptions = useMemo(() => {
-    const keys = new Set<string>([config.mesInicio, selectedMonth, todayISO().slice(0, 7)]);
-    pagos.forEach(p => keys.add(monthKeyOf(p.fecha)));
-    movimientos.forEach(m => keys.add(monthKeyOf(m.fecha)));
-    const sorted = Array.from(keys).sort();
-    const min = sorted[0] || config.mesInicio;
-    const max = sorted[sorted.length - 1] || config.mesInicio;
+    const y0 = new Date().getFullYear();
     const out: string[] = [];
-    let cur = min;
-    while (cur <= max) { out.push(cur); cur = addMonths(cur, 1); }
+    for (let y = y0 - 1; y <= y0 + 1; y++) {
+      for (let m = 1; m <= 12; m++) out.push(`${y}-${String(m).padStart(2, '0')}`);
+    }
     return out;
-  }, [config.mesInicio, pagos, movimientos, selectedMonth]);
+  }, []);
 
   // Rollup mes a mes desde mesInicio hasta selectedMonth, para que la caja
   // final de un mes sea la caja inicial del siguiente.
