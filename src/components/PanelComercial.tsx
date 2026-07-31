@@ -28,6 +28,7 @@ const PRIORIDAD_COLOR: Record<Lead['prioridad'], string> = {
 };
 
 const PLAN_PRICES: Record<string, number> = { SKOOL: 750, SERVICIO: 2000 };
+const FASE_PROBABILIDAD: Record<string, string> = { 'Prospección': '20', 'Propuesta': '30', 'Negociación': '70', 'Cierre': '100' };
 
 function emptyDraft(): LeadInput {
   const today = new Date();
@@ -521,7 +522,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div>
                 <label className={labelClass}>Fase de venta</label>
-                <select className={inputClass} value={draft.faseVenta} onChange={e => setDraft(d => ({ ...d, faseVenta: e.target.value }))}>
+                <select className={inputClass} value={draft.faseVenta} onChange={e => {
+                  const faseVenta = e.target.value;
+                  setDraft(d => ({ ...d, faseVenta, probabilidad: FASE_PROBABILIDAD[faseVenta] ?? d.probabilidad }));
+                }}>
                   <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
                 </select>
               </div>
@@ -640,14 +644,17 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Fase de venta</div>
-                <select defaultValue={selectedLead.faseVenta} onChange={e => patchLead(selectedLead.id, { faseVenta: e.target.value })}
+                <select defaultValue={selectedLead.faseVenta} onChange={e => {
+                  const faseVenta = e.target.value;
+                  patchLead(selectedLead.id, { faseVenta, probabilidad: FASE_PROBABILIDAD[faseVenta] ?? selectedLead.probabilidad });
+                }}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
                   <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
                 </select>
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Probabilidad</div>
-                <input defaultValue={selectedLead.probabilidad} onBlur={e => e.target.value !== selectedLead.probabilidad && patchLead(selectedLead.id, { probabilidad: e.target.value })}
+                <input key={selectedLead.probabilidad} defaultValue={selectedLead.probabilidad} onBlur={e => e.target.value !== selectedLead.probabilidad && patchLead(selectedLead.id, { probabilidad: e.target.value })}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
