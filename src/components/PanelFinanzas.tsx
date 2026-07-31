@@ -22,6 +22,11 @@ type MovRow = {
   origen: 'Comercial' | 'Manual';
 };
 
+// Los pagos de Comercial (finanzas_pagos) se registran en dólares (así se
+// maneja Precio/Abono en el panel Comercial); Finanzas trabaja en soles, así
+// que se convierten con este tipo de cambio antes de sumarlos a la caja.
+const USD_TO_PEN = 3.37;
+
 const CATEGORIA_SUGERENCIAS_INGRESO = ['Cliente', 'Otros ingresos', 'Venta extraordinaria'];
 const CATEGORIA_SUGERENCIAS_EGRESO = ['Operación', 'Personal', 'Software', 'Emergencia', 'Marketing'];
 
@@ -120,7 +125,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
       guard++;
       const ingresosComercial = pagos
         .filter(p => monthKeyOf(p.fecha) === cur && cerradoIds.has(p.leadId))
-        .reduce((s, p) => s + p.monto, 0);
+        .reduce((s, p) => s + p.monto * USD_TO_PEN, 0);
       const ingresosManual = movimientos
         .filter(m => m.tipo === 'ingreso' && monthKeyOf(m.fecha) === cur)
         .reduce((s, m) => s + m.monto, 0);
@@ -142,7 +147,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     const rows: MovRow[] = [];
     pagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)).forEach(p => {
       const plan = planPorLead.get(p.leadId) || 'Cliente';
-      rows.push({ id: 'pago-' + p.id, fecha: p.fecha, tipo: 'Ingreso', concepto: 'Abono cliente', cliente: p.clienteNombre, categoria: plan, monto: p.monto, origen: 'Comercial' });
+      rows.push({ id: 'pago-' + p.id, fecha: p.fecha, tipo: 'Ingreso', concepto: `Abono cliente ($${p.monto.toLocaleString('en-US')})`, cliente: p.clienteNombre, categoria: plan, monto: p.monto * USD_TO_PEN, origen: 'Comercial' });
     });
     movimientos.filter(m => monthKeyOf(m.fecha) === selectedMonth).forEach(m => {
       rows.push({ id: 'mov-' + m.id, fecha: m.fecha, tipo: m.tipo === 'ingreso' ? 'Ingreso' : 'Egreso', concepto: m.concepto, cliente: '—', categoria: m.categoria, monto: m.monto, origen: 'Manual' });
@@ -155,7 +160,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     const map = new Map<string, number>();
     pagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)).forEach(p => {
       const plan = planPorLead.get(p.leadId) || 'Otro';
-      map.set(plan, (map.get(plan) ?? 0) + p.monto);
+      map.set(plan, (map.get(plan) ?? 0) + p.monto * USD_TO_PEN);
     });
     return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   }, [pagos, cerradoIds, planPorLead, selectedMonth]);
