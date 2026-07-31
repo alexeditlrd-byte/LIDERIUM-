@@ -16,7 +16,10 @@ export async function POST(req: NextRequest) {
     }
 
     const bytes = await file.arrayBuffer();
-    const filePath = `${Date.now()}_${file.name}`;
+    const safeName = file.name
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9.\-_]/g, '_');
+    const filePath = `${Date.now()}_${safeName}`;
 
     await supabaseAdmin.storage.createBucket('guias', { public: true }).catch(() => {});
 
