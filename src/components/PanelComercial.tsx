@@ -66,6 +66,9 @@ function waLink(numero: string) {
 function mailLink(nombre: string) {
   return 'mailto:' + (nombre || '').toLowerCase().replace(/[^a-z]+/g, '.') + '@cliente.com';
 }
+function monthKeyOf(dateStr: string) {
+  return (dateStr || '').slice(0, 7); // 'YYYY-MM-DD' -> 'YYYY-MM'
+}
 function todayISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -100,6 +103,11 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   useEffect(() => { loadLeads(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const [allPagos, setAllPagos] = useState<Pago[]>([]);
+  useEffect(() => {
+    fetch('/api/finanzas/pagos').then(r => r.json()).then(d => setAllPagos(d.pagos ?? [])).catch(() => {});
+  }, []);
+
   const [leadPagos, setLeadPagos] = useState<Pago[]>([]);
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [pagoMonto, setPagoMonto] = useState('');
@@ -127,6 +135,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setLeadPagos(p => [data.pago, ...p]);
+      setAllPagos(p => [data.pago, ...p]);
       setLeads(ls => ls.map(l => (l.id === lead.id ? { ...l, abono: data.abonoTotal, deuda: l.precio - data.abonoTotal } : l)));
       setShowPagoForm(false);
       setPagoMonto(''); setPagoFecha(todayISO()); setPagoNota('');
@@ -144,6 +153,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setLeadPagos(p => p.filter(x => x.id !== pago.id));
+      setAllPagos(p => p.filter(x => x.id !== pago.id));
       const newAbono = data.abonoTotal ?? 0;
       setLeads(ls => ls.map(l => (l.id === lead.id ? { ...l, abono: newAbono, deuda: l.precio - newAbono } : l)));
       showToast('Abono eliminado');
@@ -177,9 +187,18 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   const newCount = monthLeads.filter(l => l.estado === 'Nuevo').length;
   const altaCount = monthLeads.filter(l => l.prioridad === 'Alta').length;
-  const ganadosMes = monthLeads.filter(l => l.estado === 'Ganado');
   const kpiActivos = monthLeads.filter(l => l.estado !== 'Perdido').length;
-  const kpiIngresos = money(ganadosMes.reduce((s, l) => s + (l.precio || 0), 0));
+
+  // "Ganados" e "Ingresos cerrados" se calculan con pagos reales del mes
+  // seleccionado (por fecha de pago), no por el precio del contrato — un
+  // cliente en fase Cierre solo cuenta lo que efectivamente abonó ese mes.
+  const cerradoIds = useMemo(() => new Set(leads.filter(l => l.faseVenta === 'Cierre').map(l => l.id)), [leads]);
+  const pagosDelMes = useMemo(
+    () => allPagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)),
+    [allPagos, cerradoIds, selectedMonth]
+  );
+  const ganadosMesCount = new Set(pagosDelMes.map(p => p.leadId)).size;
+  const kpiIngresos = money(pagosDelMes.reduce((s, p) => s + p.monto, 0));
 
   const columns = ESTADOS.map(estado => ({
     estado, leads: visible.filter(l => l.estado === estado),
@@ -229,11 +248,13 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       if (draft.abono > 0 && draft.faseVenta === 'Cierre') {
         const fecha = dmyToISO(draft.fechaInicio) || todayISO();
         try {
-          await fetch('/api/finanzas/pagos', {
+          const pagoRes = await fetch('/api/finanzas/pagos', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ leadId: data.lead.id, clienteNombre: draft.nombre, monto: draft.abono, fecha, nota: 'Abono inicial' }),
           });
+          const pagoData = await pagoRes.json();
+          if (pagoRes.ok) setAllPagos(p => [pagoData.pago, ...p]);
         } catch {
           showToast('El lead se creó, pero no se pudo registrar el abono inicial en Finanzas.', false);
         }
@@ -308,7 +329,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
         {[
           { label: 'Leads activos', value: kpiActivos, color: '#15171C' },
           { label: 'Nuevos sin contactar', value: newCount, color: '#1F9B6E' },
-          { label: 'Ganados este mes', value: ganadosMes.length, color: '#15171C' },
+          { label: 'Ganados este mes', value: ganadosMesCount, color: '#15171C' },
           { label: 'Ingresos cerrados', value: kpiIngresos, color: '#15171C' },
         ].map((kpi, i) => (
           <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
