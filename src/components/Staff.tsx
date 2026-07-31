@@ -58,7 +58,7 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'guia', label: 'Guía' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
-  { id: 'chatia', label: 'Chat IA · Claude' },
+  { id: 'chatia', label: 'Chat IA · Claude', founderOnly: true },
 ];
 
 const titles: Record<StaffTab, string> = {
