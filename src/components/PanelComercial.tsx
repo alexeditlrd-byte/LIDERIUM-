@@ -27,13 +27,15 @@ const PRIORIDAD_COLOR: Record<Lead['prioridad'], string> = {
   Baja: '#AEB4BE',
 };
 
+const PLAN_PRICES: Record<string, number> = { SKOOL: 750, SERVICIO: 2000 };
+
 function emptyDraft(): LeadInput {
   const today = new Date();
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
   return {
     nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '',
-    nps: '', plan: 'Starter', faseVenta: 'Prospección', probabilidad: '', responsable: '',
-    fechaInicio, fechaRenovacion: '', precio: 0, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
+    nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '',
+    fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
   };
 }
 
@@ -502,8 +504,11 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div>
                 <label className={labelClass}>Plan</label>
-                <select className={inputClass} value={draft.plan} onChange={e => setDraft(d => ({ ...d, plan: e.target.value }))}>
-                  <option value="Starter">Starter</option><option value="Growth">Growth</option><option value="Premium">Premium</option>
+                <select className={inputClass} value={draft.plan} onChange={e => {
+                  const plan = e.target.value;
+                  setDraft(d => ({ ...d, plan, precio: PLAN_PRICES[plan] ?? d.precio }));
+                }}>
+                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option>
                 </select>
               </div>
               <div>
@@ -625,9 +630,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               ))}
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Plan</div>
-                <select defaultValue={selectedLead.plan} onChange={e => patchLead(selectedLead.id, { plan: e.target.value })}
+                <select defaultValue={selectedLead.plan} onChange={e => {
+                  const plan = e.target.value;
+                  patchLead(selectedLead.id, { plan, precio: PLAN_PRICES[plan] ?? selectedLead.precio });
+                }}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="Starter">Starter</option><option value="Growth">Growth</option><option value="Premium">Premium</option>
+                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option>
                 </select>
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
