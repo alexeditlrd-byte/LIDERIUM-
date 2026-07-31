@@ -66,6 +66,12 @@ function waLink(numero: string) {
 function mailLink(nombre: string) {
   return 'mailto:' + (nombre || '').toLowerCase().replace(/[^a-z]+/g, '.') + '@cliente.com';
 }
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+interface Pago { id: string; leadId: string; clienteNombre: string; monto: number; fecha: string; nota: string; }
 
 export default function PanelComercial({ showToast }: PanelComercialProps) {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -93,6 +99,58 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   };
 
   useEffect(() => { loadLeads(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [leadPagos, setLeadPagos] = useState<Pago[]>([]);
+  const [showPagoForm, setShowPagoForm] = useState(false);
+  const [pagoMonto, setPagoMonto] = useState('');
+  const [pagoFecha, setPagoFecha] = useState(todayISO());
+  const [pagoNota, setPagoNota] = useState('');
+  const [savingPago, setSavingPago] = useState(false);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    fetch(`/api/finanzas/pagos?leadId=${selectedId}`)
+      .then(r => r.json())
+      .then(d => { setLeadPagos(d.pagos ?? []); setShowPagoForm(false); })
+      .catch(() => {});
+  }, [selectedId]);
+
+  const submitPago = async (lead: Lead) => {
+    if (!pagoMonto || !pagoFecha) { showToast('Completa el monto y la fecha del abono.', false); return; }
+    setSavingPago(true);
+    try {
+      const res = await fetch('/api/finanzas/pagos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ leadId: lead.id, clienteNombre: lead.nombre, monto: Number(pagoMonto), fecha: pagoFecha, nota: pagoNota }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setLeadPagos(p => [data.pago, ...p]);
+      setLeads(ls => ls.map(l => (l.id === lead.id ? { ...l, abono: data.abonoTotal, deuda: l.precio - data.abonoTotal } : l)));
+      setShowPagoForm(false);
+      setPagoMonto(''); setPagoFecha(todayISO()); setPagoNota('');
+      showToast('Abono registrado');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo registrar el abono', false);
+    }
+    setSavingPago(false);
+  };
+
+  const deletePago = async (pago: Pago, lead: Lead) => {
+    if (!confirm(`¿Eliminar el abono de ${money(pago.monto)}?`)) return;
+    try {
+      const res = await fetch(`/api/finanzas/pagos?id=${pago.id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setLeadPagos(p => p.filter(x => x.id !== pago.id));
+      const newAbono = data.abonoTotal ?? 0;
+      setLeads(ls => ls.map(l => (l.id === lead.id ? { ...l, abono: newAbono, deuda: l.precio - newAbono } : l)));
+      showToast('Abono eliminado');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo eliminar el abono', false);
+    }
+  };
 
   const monthOptions = useMemo(() => {
     const opts: { value: string; label: string }[] = [];
@@ -561,9 +619,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
               </div>
               <div>
-                <div className={labelClass}>Abono</div>
-                <input defaultValue={selectedLead.abono} onBlur={e => patchLead(selectedLead.id, { abono: Number(e.target.value) || 0 })}
-                  className="w-full bg-transparent border-none text-[14px] font-bold text-[#15171C] outline-none p-0" />
+                <div className={labelClass}>Abonado</div>
+                <div className="text-[14px] font-bold mt-0.5 text-[#15171C]">{money(selectedLead.abono)}</div>
               </div>
               <div>
                 <div className={labelClass}>Deuda</div>
@@ -571,6 +628,51 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   {money(selectedLead.precio - selectedLead.abono)}
                 </div>
               </div>
+            </div>
+
+            <div className="mt-3">
+              <div className="flex items-center justify-between mb-2">
+                <label className={labelClass}>Historial de abonos</label>
+                {selectedLead.faseVenta === 'Cierre' && (
+                  <button onClick={() => setShowPagoForm(s => !s)} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0">
+                    {showPagoForm ? 'Cancelar' : '+ Registrar abono'}
+                  </button>
+                )}
+              </div>
+              {selectedLead.faseVenta !== 'Cierre' && (
+                <div className="text-[12px] text-[#AEB4BE] font-semibold mb-2">Solo se pueden registrar abonos cuando la fase de venta es &quot;Cierre&quot;.</div>
+              )}
+              {showPagoForm && (
+                <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 mb-2 flex flex-col gap-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="Monto (USD)"
+                      className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" />
+                    <input type="date" value={pagoFecha} onChange={e => setPagoFecha(e.target.value)}
+                      className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" style={{ colorScheme: 'light' }} />
+                  </div>
+                  <input value={pagoNota} onChange={e => setPagoNota(e.target.value)} placeholder="Nota (opcional)"
+                    className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white focus:border-steel" />
+                  <button onClick={() => submitPago(selectedLead)} disabled={savingPago}
+                    className="h-9 bg-[#1F9B6E] text-white border-none rounded-[8px] font-bold text-[12.5px] cursor-pointer hover:bg-[#188058] transition disabled:opacity-60">
+                    {savingPago ? 'Guardando…' : 'Guardar abono'}
+                  </button>
+                </div>
+              )}
+              {leadPagos.length === 0 ? (
+                <div className="text-[12px] text-[#C2C8D2] font-semibold py-2">Sin abonos registrados.</div>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {leadPagos.map(p => (
+                    <div key={p.id} className="flex items-center justify-between gap-2 bg-white border border-[#F0F2F5] rounded-[8px] px-3 py-2">
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-[#15171C]">{money(p.monto)}</div>
+                        <div className="text-[11px] text-[#9AA0A8] font-semibold">{p.fecha.split('-').reverse().join('/')}{p.nota ? ` · ${p.nota}` : ''}</div>
+                      </div>
+                      <button onClick={() => deletePago(p, selectedLead)} title="Eliminar" className="text-[#C2C8D2] hover:text-[#D14343] bg-transparent border-none cursor-pointer text-[12px] font-bold flex-shrink-0">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="mt-5">
