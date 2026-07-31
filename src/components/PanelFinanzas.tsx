@@ -6,7 +6,7 @@ interface PanelFinanzasProps {
   showToast: (text: string, ok?: boolean) => void;
 }
 
-interface LeadLite { id: string; nombre: string; faseVenta: string; }
+interface LeadLite { id: string; nombre: string; faseVenta: string; plan: string; }
 interface Pago { id: string; leadId: string; clienteNombre: string; monto: number; fecha: string; nota: string; }
 interface Movimiento { id: string; tipo: 'ingreso' | 'egreso'; concepto: string; categoria: string; monto: number; fecha: string; nota: string; }
 interface Config { mesInicio: string; cajaInicial: number; }
@@ -76,8 +76,8 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
       fetch('/api/finanzas/movimientos').then(r => r.json()),
       fetch('/api/finanzas/config').then(r => r.json()),
     ]).then(([leadsRes, pagosRes, movRes, cfgRes]) => {
-      const rawLeads: { id: string; nombre: string; faseVenta: string }[] = leadsRes.leads ?? [];
-      setLeads(rawLeads.map(l => ({ id: l.id, nombre: l.nombre, faseVenta: l.faseVenta })));
+      const rawLeads: { id: string; nombre: string; faseVenta: string; plan: string }[] = leadsRes.leads ?? [];
+      setLeads(rawLeads.map(l => ({ id: l.id, nombre: l.nombre, faseVenta: l.faseVenta, plan: l.plan })));
       setPagos(pagosRes.pagos ?? []);
       setMovimientos(movRes.movimientos ?? []);
       setConfig(cfgRes.config);
@@ -95,6 +95,7 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   }, []);
 
   const cerradoIds = useMemo(() => new Set(leads.filter(l => l.faseVenta === 'Cierre').map(l => l.id)), [leads]);
+  const planPorLead = useMemo(() => new Map(leads.map(l => [l.id, l.plan])), [leads]);
 
   // Meses disponibles en el selector: desde el mes de inicio configurado hasta
   // 12 meses después del más reciente que tenga datos (o el actual, lo que sea mayor).
@@ -144,13 +145,24 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
   const movRows: MovRow[] = useMemo(() => {
     const rows: MovRow[] = [];
     pagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)).forEach(p => {
-      rows.push({ id: 'pago-' + p.id, fecha: p.fecha, tipo: 'Ingreso', concepto: 'Abono cliente', cliente: p.clienteNombre, categoria: 'Cliente', monto: p.monto, origen: 'Comercial' });
+      const plan = planPorLead.get(p.leadId) || 'Cliente';
+      rows.push({ id: 'pago-' + p.id, fecha: p.fecha, tipo: 'Ingreso', concepto: 'Abono cliente', cliente: p.clienteNombre, categoria: plan, monto: p.monto, origen: 'Comercial' });
     });
     movimientos.filter(m => monthKeyOf(m.fecha) === selectedMonth).forEach(m => {
       rows.push({ id: 'mov-' + m.id, fecha: m.fecha, tipo: m.tipo === 'ingreso' ? 'Ingreso' : 'Egreso', concepto: m.concepto, cliente: '—', categoria: m.categoria, monto: m.monto, origen: 'Manual' });
     });
     return rows.sort((a, b) => a.fecha.localeCompare(b.fecha));
-  }, [pagos, movimientos, cerradoIds, selectedMonth]);
+  }, [pagos, movimientos, cerradoIds, planPorLead, selectedMonth]);
+
+  // Ingresos comerciales del mes, divididos por plan (SKOOL / SERVICIO / otros).
+  const ingresosPorPlan = useMemo(() => {
+    const map = new Map<string, number>();
+    pagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)).forEach(p => {
+      const plan = planPorLead.get(p.leadId) || 'Otro';
+      map.set(plan, (map.get(plan) ?? 0) + p.monto);
+    });
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  }, [pagos, cerradoIds, planPorLead, selectedMonth]);
 
   const saveConfig = async () => {
     setSavingConfig(true);
@@ -267,6 +279,15 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
           </div>
         ))}
       </div>
+
+      {ingresosPorPlan.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 -mt-2">
+          <span className="text-[11.5px] font-bold text-[#8A929E]">Ingresos comerciales por plan:</span>
+          {ingresosPorPlan.map(([plan, monto]) => (
+            <span key={plan} className="text-[12px] font-black text-[#2E6CA0] bg-[#EAF1F8] px-3 py-1 rounded-full">{plan}: {money(monto)}</span>
+          ))}
+        </div>
+      )}
 
       {/* Tabla de movimientos */}
       <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
