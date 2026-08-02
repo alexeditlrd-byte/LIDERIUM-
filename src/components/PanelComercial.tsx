@@ -509,7 +509,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   const plan = e.target.value;
                   setDraft(d => ({ ...d, plan, precio: PLAN_PRICES[plan] ?? d.precio }));
                 }}>
-                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option>
+                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option><option value="INFOPRODUCTO TERRY">INFOPRODUCTO TERRY</option>
                 </select>
               </div>
               <div>
@@ -639,7 +639,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   patchLead(selectedLead.id, { plan, precio: PLAN_PRICES[plan] ?? selectedLead.precio });
                 }}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option>
+                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option><option value="INFOPRODUCTO TERRY">INFOPRODUCTO TERRY</option>
                 </select>
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
