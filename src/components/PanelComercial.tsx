@@ -396,15 +396,15 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
         <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden">
           <div className="overflow-x-auto">
             <div className="grid px-6 py-[13px] bg-[#FAFBFC] border-b border-[#F0F2F5] text-[10.5px] font-black uppercase tracking-[0.05em] text-[#9AA0A8]"
-              style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr .8fr 1fr .9fr 1fr 1.1fr', minWidth: '900px' }}>
-              <span>Cliente</span><span>Nicho</span><span>Fase de venta</span><span>NPS</span><span>Plan / Precio</span><span>Responsable</span><span>Estado</span><span className="text-right">Acciones</span>
+              style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr 1fr .9fr 1fr 1.1fr', minWidth: '900px' }}>
+              <span>Cliente</span><span>Nicho</span><span>Fase de venta</span><span>Plan / Precio</span><span>Responsable</span><span>Estado</span><span className="text-right">Acciones</span>
             </div>
             {visible.map(lead => {
               const ec = ESTADO_STYLE[lead.estado];
               return (
                 <div key={lead.id} onClick={() => setSelectedId(lead.id)}
                   className="grid px-6 py-[13px] items-center border-b border-[#F2F4F7] last:border-b-0 cursor-pointer hover:bg-[#FAFBFC] transition"
-                  style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr .8fr 1fr .9fr 1fr 1.1fr', minWidth: '900px', background: lead.estado === 'Nuevo' ? 'rgba(31,155,110,.04)' : undefined }}>
+                  style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr 1fr .9fr 1fr 1.1fr', minWidth: '900px', background: lead.estado === 'Nuevo' ? 'rgba(31,155,110,.04)' : undefined }}>
                   <div className="flex items-center gap-[10px] min-w-0">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
                     <div className="min-w-0">
@@ -414,7 +414,6 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   </div>
                   <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.nicho}</div>
                   <div className="text-[12px] text-[#8A929E] font-semibold">{lead.faseVenta}</div>
-                  <div className="text-[12.5px] font-bold text-[#15171C]">{lead.nps}</div>
                   <div>
                     <div className="text-[12.5px] font-bold text-[#15171C]">{lead.plan}</div>
                     <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio)}</div>
@@ -560,10 +559,6 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 </select>
               </div>
               <div>
-                <label className={labelClass}>NPS Score</label>
-                <input className={inputClass} value={draft.nps} onChange={e => setDraft(d => ({ ...d, nps: e.target.value }))} placeholder="0-10" />
-              </div>
-              <div>
                 <label className={labelClass}>Fase de venta</label>
                 <select className={inputClass} value={draft.faseVenta} onChange={e => {
                   const faseVenta = e.target.value;
@@ -666,8 +661,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               {(
                 [
                   ['tipoInfoproductor', 'Tipo infoproductor'], ['nicho', 'Nicho'], ['plataformas', 'Plataformas activas'],
-                  ['nps', 'NPS Score'],
-                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas' | 'nps'>, string][]
+                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas'>, string][]
               ).map(([field, label]) => (
                 <div key={field} className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                   <div className={labelClass}>{label}</div>
