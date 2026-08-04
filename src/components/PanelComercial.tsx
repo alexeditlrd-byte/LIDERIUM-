@@ -542,7 +542,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div>
                 <label className={labelClass}>Responsable</label>
-                <input className={inputClass} value={draft.responsable} onChange={e => setDraft(d => ({ ...d, responsable: e.target.value }))} placeholder="Nombre del comercial" />
+                <select className={inputClass} value={draft.responsable} onChange={e => setDraft(d => ({ ...d, responsable: e.target.value }))}>
+                  <option value="">Selecciona…</option>
+                  {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
               </div>
               <div>
                 <label className={labelClass}>NPS Score</label>
@@ -651,8 +654,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               {(
                 [
                   ['tipoInfoproductor', 'Tipo infoproductor'], ['nicho', 'Nicho'], ['plataformas', 'Plataformas activas'],
-                  ['nps', 'NPS Score'], ['responsable', 'Responsable'],
-                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas' | 'nps' | 'responsable'>, string][]
+                  ['nps', 'NPS Score'],
+                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas' | 'nps'>, string][]
               ).map(([field, label]) => (
                 <div key={field} className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                   <div className={labelClass}>{label}</div>
@@ -660,6 +663,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                     className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
                 </div>
               ))}
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Responsable</div>
+                <select defaultValue={selectedLead.responsable} onChange={e => patchLead(selectedLead.id, { responsable: e.target.value })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
+                  <option value="">Selecciona…</option>
+                  {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Plan</div>
                 <select defaultValue={selectedLead.plan} onChange={e => {
