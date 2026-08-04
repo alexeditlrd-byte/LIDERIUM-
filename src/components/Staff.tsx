@@ -63,6 +63,11 @@ const titles: Record<StaffTab, string> = {
   calendario: 'Calendario de reuniones',
 };
 
+const RESPONSABLE_EMAIL: Record<string, string> = {
+  Winona: 'winonadavila@gmail.com',
+  Maryori: 'maryori.drgj@gmail.com',
+};
+
 const meetings = [
   { day: 'Hoy · Mar 17', time: '10:00', client: 'Aurora Café', type: 'Revisión de contenido', who: 'Mateo', c: '#2E6CA0' },
   { day: 'Hoy · Mar 17', time: '15:30', client: 'Studio Norte', type: 'Estrategia mensual', who: 'Lucía', c: '#2FB389' },
@@ -1162,8 +1167,14 @@ export default function Staff({ onLogout }: StaffProps) {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Responsable</label>
-                            <input type="text" placeholder="Ej: Mateo Salas" value={reunionForm.mentor} onChange={e => setReunionForm(f => ({ ...f, mentor: e.target.value }))}
-                              className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                            <select value={reunionForm.mentor} onChange={e => {
+                              const mentor = e.target.value;
+                              setReunionForm(f => ({ ...f, mentor, mentorEmail: RESPONSABLE_EMAIL[mentor] ?? f.mentorEmail }));
+                            }}
+                              className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
+                              <option value="">Selecciona…</option>
+                              {Object.keys(RESPONSABLE_EMAIL).map(r => <option key={r} value={r}>{r}</option>)}
+                            </select>
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cargo</label>
