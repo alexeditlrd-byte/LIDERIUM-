@@ -221,10 +221,11 @@ export default function Staff({ onLogout }: StaffProps) {
   const submitReschedule = async () => {
     if (!reschedule) return;
     setReschedulingBusy(true);
+    const scheduledAt = new Date(`${reschedule.fecha}T${reschedule.hora}:00`).toISOString();
     const res = await fetch('/api/reuniones', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: reschedule.id, fecha: reschedule.fecha, hora: reschedule.hora }),
+      body: JSON.stringify({ id: reschedule.id, scheduledAt }),
     });
     const data = await res.json();
     if (res.ok) {
