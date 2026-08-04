@@ -1147,7 +1147,7 @@ export default function Staff({ onLogout }: StaffProps) {
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cliente</label>
                           <select value={reunionForm.clientSlug} onChange={e => {
                             const lead = comercialLeads.find(l => l.id === e.target.value);
-                            setReunionForm(f => ({ ...f, clientSlug: e.target.value, clientName: lead?.nombre ?? '', clientEmail: '' }));
+                            setReunionForm(f => ({ ...f, clientSlug: e.target.value, clientName: lead?.nombre ?? '', clientEmail: '', mentorRole: lead?.plan ?? '' }));
                           }} className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
                             <option value="">Selecciona cliente…</option>
                             {comercialLeads.map(lead => (
@@ -1177,9 +1177,10 @@ export default function Staff({ onLogout }: StaffProps) {
                             </select>
                           </div>
                           <div>
-                            <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cargo</label>
-                            <input type="text" placeholder="Ej: Estratega de contenido" value={reunionForm.mentorRole} onChange={e => setReunionForm(f => ({ ...f, mentorRole: e.target.value }))}
-                              className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                            <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plan</label>
+                            <div className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-bold text-[#15171C] bg-[#F4F6F8] flex items-center">
+                              {reunionForm.mentorRole || '—'}
+                            </div>
                           </div>
                         </div>
                         <div>
