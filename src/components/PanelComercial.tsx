@@ -93,6 +93,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverEstado, setDragOverEstado] = useState<Lead['estado'] | null>(null);
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [draft, setDraft] = useState<LeadInput>(emptyDraft());
@@ -442,7 +444,17 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
           {columns.map(col => (
-            <div key={col.estado} className="bg-white border border-[#ECEEF2] rounded-[18px] min-h-[160px]">
+            <div key={col.estado}
+              onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverEstado !== col.estado) setDragOverEstado(col.estado); }}
+              onDragLeave={() => setDragOverEstado(prev => (prev === col.estado ? null : prev))}
+              onDrop={e => {
+                e.preventDefault();
+                setDragOverEstado(null);
+                const leadId = e.dataTransfer.getData('text/plain');
+                const lead = leads.find(l => l.id === leadId);
+                if (lead && lead.estado !== col.estado) patchLead(lead.id, { estado: col.estado });
+              }}
+              className={`bg-white border rounded-[18px] min-h-[160px] transition ${dragOverEstado === col.estado ? 'border-steel bg-[#F3F8FC]' : 'border-[#ECEEF2]'}`}>
               <div className="flex items-center justify-between px-4 py-[13px] border-b border-[#F0F2F5]">
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full" style={{ background: ESTADO_STYLE[col.estado].color }} />
@@ -452,8 +464,11 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div className="flex flex-col gap-[10px] p-3">
                 {col.leads.map(lead => (
-                  <div key={lead.id} onClick={() => setSelectedId(lead.id)}
-                    className="bg-[#FAFBFC] border border-[#F0F2F5] rounded-[12px] p-3 cursor-pointer hover:border-steel transition">
+                  <div key={lead.id} draggable
+                    onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); e.dataTransfer.effectAllowed = 'move'; setDraggedLeadId(lead.id); }}
+                    onDragEnd={() => { setDraggedLeadId(null); setDragOverEstado(null); }}
+                    onClick={() => setSelectedId(lead.id)}
+                    className={`bg-[#FAFBFC] border border-[#F0F2F5] rounded-[12px] p-3 cursor-grab active:cursor-grabbing hover:border-steel transition ${draggedLeadId === lead.id ? 'opacity-40' : ''}`}>
                     <div className="flex justify-between items-start gap-2">
                       <div className="text-[13px] font-bold text-[#15171C]">{lead.nombre}</div>
                       <span className="w-[7px] h-[7px] rounded-full flex-shrink-0 mt-1" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
