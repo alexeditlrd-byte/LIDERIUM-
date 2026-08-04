@@ -10,6 +10,8 @@ interface PanelComercialProps {
 type View = 'tabla' | 'kanban';
 type Filter = 'all' | 'alta' | 'nuevo';
 
+const RESPONSABLES = ['Winona', 'Maryori'];
+
 const ESTADOS: Lead['estado'][] = ['Nuevo', 'Contactado', 'Ganado', 'Perdido'];
 const PRIORIDADES: Lead['prioridad'][] = ['Alta', 'Media', 'Baja'];
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -87,6 +89,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   const [view, setView] = useState<View>('tabla');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
+  const [responsableFilter, setResponsableFilter] = useState('Todos');
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -188,9 +191,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       if (q && !(l.nombre.toLowerCase().includes(q) || l.nicho.toLowerCase().includes(q) || l.instagram.toLowerCase().includes(q))) return false;
       if (filter === 'alta' && l.prioridad !== 'Alta') return false;
       if (filter === 'nuevo' && l.estado !== 'Nuevo') return false;
+      if (responsableFilter !== 'Todos' && l.responsable.trim().toLowerCase() !== responsableFilter.toLowerCase()) return false;
       return true;
     });
-  }, [monthLeads, search, filter]);
+  }, [monthLeads, search, filter, responsableFilter]);
 
   const newCount = monthLeads.filter(l => l.estado === 'Nuevo').length;
   const altaCount = monthLeads.filter(l => l.prioridad === 'Alta').length;
@@ -329,6 +333,15 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
           {monthOptions.map(mo => <option key={mo.value} value={mo.value}>{mo.label}</option>)}
         </select>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Responsable</span>
+          <select value={responsableFilter} onChange={e => setResponsableFilter(e.target.value)}
+            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
+            <option value="Todos">Todos</option>
+            {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
       </div>
 
       {/* KPIs */}
