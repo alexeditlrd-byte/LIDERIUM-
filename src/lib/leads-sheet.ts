@@ -18,6 +18,7 @@ export interface Lead {
   faseVenta: string;
   probabilidad: string;
   responsable: string;
+  propietario: string;
   fechaInicio: string; // dd/mm/yyyy
   fechaRenovacion: string; // dd/mm/yyyy
   precio: number;
@@ -46,6 +47,7 @@ interface LeadRow {
   fase_venta: string;
   probabilidad: string;
   responsable: string;
+  propietario: string;
   fecha_inicio: string;
   fecha_renovacion: string;
   precio: number;
@@ -67,6 +69,7 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
   faseVenta: 'fase_venta',
   probabilidad: 'probabilidad',
   responsable: 'responsable',
+  propietario: 'propietario',
   fechaInicio: 'fecha_inicio',
   fechaRenovacion: 'fecha_renovacion',
   precio: 'precio',
@@ -90,6 +93,7 @@ function rowToLead(row: LeadRow): Lead {
     faseVenta: row.fase_venta,
     probabilidad: row.probabilidad,
     responsable: row.responsable,
+    propietario: row.propietario,
     fechaInicio: row.fecha_inicio,
     fechaRenovacion: row.fecha_renovacion,
     precio: Number(row.precio) || 0,

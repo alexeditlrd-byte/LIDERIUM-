@@ -220,6 +220,8 @@ export default function Staff({ onLogout }: StaffProps) {
   const [reunionDay, setReunionDay] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const shiftReunionDay = (delta: number) => setReunionDay(d => { const nd = new Date(d); nd.setDate(nd.getDate() + delta); return nd; });
   const goToToday = () => setReunionDay(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const [ownerFilter, setOwnerFilter] = useState('Todos');
+  const ownerOfMeeting = (m: any) => comercialLeads.find(l => l.id === m.client_slug)?.propietario || '';
 
   const openReschedule = (m: any) => {
     const d = new Date(m.scheduled_at);
@@ -1267,7 +1269,15 @@ export default function Staff({ onLogout }: StaffProps) {
               <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden px-2 py-3.5">
                 <div className="px-4 pb-1.5 flex items-center justify-between gap-3">
                   <h3 className="font-grotesk font-semibold text-[18px] text-[#15171C]">Próximas reuniones</h3>
-                  <button onClick={goToToday} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0 flex-shrink-0">Hoy</button>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <select value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}
+                      className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none">
+                      <option value="Todos">Propietario: Todos</option>
+                      <option value="Terry">Terry</option>
+                      <option value="Santiago">Santiago</option>
+                    </select>
+                    <button onClick={goToToday} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0">Hoy</button>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between gap-3 px-4 pb-2">
                   <button onClick={() => shiftReunionDay(-1)} title="Día anterior"
@@ -1293,7 +1303,9 @@ export default function Staff({ onLogout }: StaffProps) {
                 ) : (() => {
                   const colors = ['#2E6CA0','#2FB389','#15171C','#C9821F','#7C5CBF','#D14343'];
                   const periodOf = (hour: number) => (hour < 12 ? 'Mañana' : hour < 19 ? 'Tarde' : 'Noche');
-                  const dayReuniones = reuniones.filter((m: any) => new Date(m.scheduled_at).toDateString() === reunionDay.toDateString());
+                  const dayReuniones = reuniones
+                    .filter((m: any) => ownerFilter === 'Todos' || ownerOfMeeting(m) === ownerFilter)
+                    .filter((m: any) => new Date(m.scheduled_at).toDateString() === reunionDay.toDateString());
 
                   if (dayReuniones.length === 0) {
                     return (

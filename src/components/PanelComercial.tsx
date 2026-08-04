@@ -11,6 +11,7 @@ type View = 'tabla' | 'kanban';
 type Filter = 'all' | 'alta' | 'nuevo';
 
 const RESPONSABLES = ['Winona', 'Maryori'];
+const PROPIETARIOS = ['Terry', 'Santiago'];
 
 const ESTADOS: Lead['estado'][] = ['Nuevo', 'Contactado', 'Ganado', 'Perdido'];
 const PRIORIDADES: Lead['prioridad'][] = ['Alta', 'Media', 'Baja'];
@@ -37,7 +38,7 @@ function emptyDraft(): LeadInput {
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
   return {
     nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '',
-    nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '',
+    nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '', propietario: '',
     fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
   };
 }
@@ -240,6 +241,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   const submitAddForm = async () => {
     if (!draft.nombre.trim() || !draft.numero.trim() || !draft.precio) {
       setFormError('Nombre, WhatsApp y precio son obligatorios.');
+      return;
+    }
+    if (!draft.propietario) {
+      setFormError('Selecciona un propietario.');
       return;
     }
     setSubmitting(true);
@@ -548,6 +553,13 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 </select>
               </div>
               <div>
+                <label className={labelClass}>Propietario *</label>
+                <select className={inputClass} value={draft.propietario} onChange={e => setDraft(d => ({ ...d, propietario: e.target.value }))}>
+                  <option value="">Selecciona…</option>
+                  {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
                 <label className={labelClass}>NPS Score</label>
                 <input className={inputClass} value={draft.nps} onChange={e => setDraft(d => ({ ...d, nps: e.target.value }))} placeholder="0-10" />
               </div>
@@ -669,6 +681,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
                   <option value="">Selecciona…</option>
                   {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
+                <div className={labelClass}>Propietario</div>
+                <select defaultValue={selectedLead.propietario} onChange={e => patchLead(selectedLead.id, { propietario: e.target.value })}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
+                  <option value="">Selecciona…</option>
+                  {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
