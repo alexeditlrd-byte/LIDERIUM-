@@ -625,8 +625,16 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
         <div className="fixed inset-0 z-[9998] bg-[rgba(0,0,0,.5)] flex justify-end" onClick={() => setSelectedId(null)}>
           <div className="w-[440px] max-w-[92vw] h-full bg-white overflow-y-auto px-7 py-7" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-start gap-3">
-              <div className="min-w-0">
-                <div className="font-grotesk font-bold text-[19px] text-[#15171C] truncate">{selectedLead.nombre}</div>
+              <div className="min-w-0 flex-1">
+                <input
+                  key={selectedLead.id}
+                  defaultValue={selectedLead.nombre}
+                  onBlur={e => {
+                    const value = e.target.value.trim();
+                    if (value && value !== selectedLead.nombre) patchLead(selectedLead.id, { nombre: value });
+                  }}
+                  className="w-full font-grotesk font-bold text-[19px] text-[#15171C] bg-transparent border-none outline-none p-0 focus:underline"
+                />
                 <div className="flex gap-2 mt-2">
                   <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.instagram || '—'}</span>
                   <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.numero}</span>
