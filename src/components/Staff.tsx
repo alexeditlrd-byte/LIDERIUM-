@@ -6,12 +6,13 @@ import { supabase } from '@/lib/supabase';
 import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
 import PanelFinanzas from '@/components/PanelFinanzas';
+import PanelInstagram from '@/components/PanelInstagram';
 
 interface StaffProps {
   onLogout: () => void;
 }
 
-type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario';
+type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'instagram';
 
 const ICONS: Record<string, React.ReactNode> = {
   comercial: (
@@ -45,6 +46,11 @@ const ICONS: Record<string, React.ReactNode> = {
       <rect x="3" y="4" width="18" height="17" rx="2.5" /><path d="M3 9h18M8 2v4M16 2v4" />
     </svg>
   ),
+  instagram: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
+      <rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><path d="M17.5 6.5h.01" />
+    </svg>
+  ),
 };
 
 const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
@@ -52,6 +58,7 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'guia', label: 'Guía' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
+  { id: 'instagram', label: 'Instagram de Santiago' },
 ];
 
 const titles: Record<StaffTab, string> = {
@@ -61,6 +68,7 @@ const titles: Record<StaffTab, string> = {
   finanzas: 'Finanzas',
   pagos: 'Pagos de clientes',
   calendario: 'Calendario de reuniones',
+  instagram: 'Instagram de Santiago',
 };
 
 const RESPONSABLE_EMAIL: Record<string, string> = {
@@ -560,6 +568,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
           {/* ── COMERCIAL ── */}
           {tab === 'comercial' && <PanelComercial showToast={showToast} />}
+
+          {/* ── INSTAGRAM ── */}
+          {tab === 'instagram' && <PanelInstagram showToast={showToast} />}
 
           {/* ── GUÍA ── */}
           {tab === 'guia' && (
