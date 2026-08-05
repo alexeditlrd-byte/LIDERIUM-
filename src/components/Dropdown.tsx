@@ -49,7 +49,7 @@ export default function Dropdown({ value, onChange, options, className, style, p
       </button>
       {open && (
         <div
-          className={`absolute z-50 mt-1.5 min-w-full w-max max-w-[280px] max-h-[280px] overflow-y-auto bg-white border border-[#E2E5EA] rounded-[12px] shadow-[0_8px_24px_rgba(0,0,0,.12)] py-1.5 ${align === 'right' ? 'right-0' : 'left-0'}`}
+          className={`absolute z-50 mt-1.5 min-w-full w-max max-w-[280px] max-h-[130px] overflow-y-auto bg-white border border-[#E2E5EA] rounded-[12px] shadow-[0_8px_24px_rgba(0,0,0,.12)] py-1.5 ${align === 'right' ? 'right-0' : 'left-0'}`}
         >
           {normalized.map(o => (
             <div
