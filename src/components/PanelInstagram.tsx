@@ -107,9 +107,9 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
 
   useEffect(() => {
     loadConversations();
-    // Revisa mensajes nuevos cada 10s sin que el comercial tenga que
-    // apretar refrescar — así se sienten como si llegaran en el momento.
-    const interval = setInterval(() => loadConversations(true), 10000);
+    // Revisa mensajes nuevos cada 4s como respaldo garantizado, por si el
+    // tiempo real (Supabase Realtime) fallara por algún motivo.
+    const interval = setInterval(() => loadConversations(true), 4000);
     return () => clearInterval(interval);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -151,6 +151,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const channel = supabase
       .channel('ig-events')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ig_events' }, payload => {
+        console.log('[ig-realtime] evento recibido:', payload.new);
         const row = payload.new as { participant_id?: string; text_preview?: string | null; created_at?: string };
         const participantId = row.participant_id;
         if (!participantId) return;
@@ -182,7 +183,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         }
         loadConversations(true);
       })
-      .subscribe();
+      .subscribe(status => console.log('[ig-realtime] estado de la conexión:', status));
     return () => { supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
