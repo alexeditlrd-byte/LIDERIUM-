@@ -135,24 +135,37 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const selectedIdRef = useRef<string | null>(null);
   useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
 
+  const fetchAndCacheMessages = (id: string) => {
+    return fetch(`/api/instagram/messages?conversationId=${id}`)
+      .then(r => r.json())
+      .then(d => {
+        const msgs: Message[] = d.messages ?? [];
+        messagesCache.current[id] = msgs;
+        if (selectedIdRef.current === id) setMessages(msgs);
+        return msgs;
+      })
+      .catch(() => []);
+  };
+
   useEffect(() => {
     const channel = supabase
       .channel('ig-events')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ig_events' }, payload => {
         const participantId = (payload.new as { participant_id?: string }).participant_id;
         if (!participantId) return;
-        loadConversations(true);
         const conv = conversationsRef.current.find(c => c.participantId === participantId);
         if (conv) {
-          fetch(`/api/instagram/messages?conversationId=${conv.id}`)
-            .then(r => r.json())
-            .then(d => {
-              const msgs: Message[] = d.messages ?? [];
-              messagesCache.current[conv.id] = msgs;
-              if (selectedIdRef.current === conv.id) setMessages(msgs);
-            })
-            .catch(() => {});
+          // Marca no leido al instante (sin esperar a comparar fechas con
+          // Instagram, que a veces tarda un par de segundos en actualizarse).
+          if (selectedIdRef.current !== conv.id) {
+            setUnreadCounts(prev => ({ ...prev, [conv.id]: (prev[conv.id] || 0) + 1 }));
+          }
+          fetchAndCacheMessages(conv.id);
+          // Reintenta una vez mas por si Instagram todavia no habia
+          // indexado el mensaje en el primer intento.
+          setTimeout(() => fetchAndCacheMessages(conv.id), 2500);
         }
+        loadConversations(true);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
