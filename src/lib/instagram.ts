@@ -54,7 +54,7 @@ export async function listConversations(): Promise<IGConversation[]> {
 }
 
 export async function getMessages(conversationId: string): Promise<IGMessage[]> {
-  const data = await igFetch(`/${conversationId}`, { fields: 'messages{id,from,message,created_time}' });
+  const data = await igFetch(`/${conversationId}`, { fields: 'messages.limit(30){id,from,message,created_time}' });
   const messages = (data.messages?.data ?? []) as RawMessage[];
   return messages
     .map((m) => ({ id: m.id, fromId: m.from?.id ?? '', text: m.message ?? '', createdTime: m.created_time }))

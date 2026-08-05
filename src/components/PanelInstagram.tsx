@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 interface Conversation {
   id: string;
@@ -30,6 +30,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [messages, setMessages] = useState<Message[]>([]);
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
+  const messagesCache = useRef<Record<string, Message[]>>({});
 
   const loadConversations = () => {
     fetch('/api/instagram/conversations')
@@ -46,10 +47,17 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
 
   useEffect(() => {
     if (!selectedId) return;
-    fetch(`/api/instagram/messages?conversationId=${selectedId}`)
-      .then(r => r.json())
-      .then(d => setMessages(d.messages ?? []))
-      .catch(() => showToast('No se pudo cargar la conversación', false));
+    const cached = messagesCache.current[selectedId];
+    Promise.resolve(cached).then(cachedMessages => {
+      if (cachedMessages) { setMessages(cachedMessages); return; }
+      return fetch(`/api/instagram/messages?conversationId=${selectedId}`)
+        .then(r => r.json())
+        .then(d => {
+          const msgs = d.messages ?? [];
+          messagesCache.current[selectedId] = msgs;
+          setMessages(msgs);
+        });
+    }).catch(() => showToast('No se pudo cargar la conversación', false));
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
@@ -65,7 +73,12 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMessages(m => [...m, { id: `local-${Date.now()}`, fromId: 'me', text: reply, createdTime: new Date().toISOString() }]);
+      const newMsg = { id: `local-${Date.now()}`, fromId: 'me', text: reply, createdTime: new Date().toISOString() };
+      setMessages(m => {
+        const updated = [...m, newMsg];
+        messagesCache.current[selected.id] = updated;
+        return updated;
+      });
       setReply('');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo enviar', false);
