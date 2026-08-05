@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface Conversation {
@@ -44,38 +44,28 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const messagesCache = useRef<Record<string, Message[]>>({});
-  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // "No leído" se calcula siempre de la misma forma, en el momento de
+  // pintar la lista: la conversación se actualizó después de la última
+  // vez que la abriste. Nada de contadores separados que se puedan
+  // desincronizar — un solo dato de verdad (conversations + lastSeen).
+  const [lastSeenTick, setLastSeenTick] = useState(0);
+  const touchLastSeen = () => setLastSeenTick(t => t + 1);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages, selectedId]);
 
-  const computeUnread = (convs: Conversation[]) => {
+  const ensureBaseline = (convs: Conversation[]) => {
     const lastSeen = readLastSeen();
-    if (Object.keys(lastSeen).length === 0) {
-      // Primera vez que se usa esta pestaña: no marcamos todo el historial
-      // como no leído, solo lo que llegue de aquí en adelante.
-      const baseline: Record<string, string> = {};
-      convs.forEach(c => { baseline[c.id] = c.updatedTime; });
-      writeLastSeen(baseline);
-      setUnreadCounts({});
-      return;
-    }
-    convs
-      .filter(c => new Date(c.updatedTime) > new Date(lastSeen[c.id] || 0))
-      .forEach(c => {
-        fetch(`/api/instagram/messages?conversationId=${c.id}`)
-          .then(r => r.json())
-          .then(d => {
-            const msgs: Message[] = d.messages ?? [];
-            messagesCache.current[c.id] = msgs;
-            const since = new Date(lastSeen[c.id] || 0);
-            const count = msgs.filter(m => m.fromId === c.participantId && new Date(m.createdTime) > since).length;
-            if (count > 0) setUnreadCounts(prev => ({ ...prev, [c.id]: count }));
-          })
-          .catch(() => {});
-      });
+    if (Object.keys(lastSeen).length > 0) return;
+    // Primera vez que se usa esta pestaña: no marcamos todo el historial
+    // como no leído, solo lo que llegue de aquí en adelante.
+    const baseline: Record<string, string> = {};
+    convs.forEach(c => { baseline[c.id] = c.updatedTime; });
+    writeLastSeen(baseline);
+    touchLastSeen();
   };
 
   const fetchingRef = useRef<Set<string>>(new Set());
@@ -96,7 +86,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         const convs: Conversation[] = d.conversations ?? [];
         setConversations(convs);
         if (d.error) { if (!silent) setConfigured(false); if (!silent) showToast(d.error, false); return; }
-        computeUnread(convs);
+        ensureBaseline(convs);
         // Precarga las 5 conversaciones mas recientes en segundo plano
         // para que abrirlas se sienta instantaneo.
         convs.slice(0, 5).forEach(c => prefetchMessages(c.id));
@@ -156,11 +146,12 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         if (!participantId) return;
         const conv = conversationsRef.current.find(c => c.participantId === participantId);
         if (conv) {
-          // Marca no leido al instante (sin esperar a comparar fechas con
-          // Instagram, que a veces tarda un par de segundos en actualizarse).
-          if (selectedIdRef.current !== conv.id) {
-            setUnreadCounts(prev => ({ ...prev, [conv.id]: (prev[conv.id] || 0) + 1 }));
-          }
+          // Adelanta la hora de esta conversación al instante, sin esperar
+          // a que Instagram termine de actualizar su propio updated_time —
+          // así "no leído" (que se calcula comparando esa hora) aparece de
+          // inmediato en vez de depender de la API.
+          const bumpedTime = row.created_at || new Date().toISOString();
+          setConversations(prev => prev.map(c => (c.id === conv.id ? { ...c, updatedTime: bumpedTime } : c)));
           // El aviso de Meta ya trae el texto — lo mostramos de una vez,
           // sin esperar a volver a preguntarle a la API de Instagram.
           if (row.text_preview) {
@@ -188,15 +179,10 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
 
   const openConversation = (id: string) => {
     setSelectedId(id);
-    setUnreadCounts(prev => {
-      if (!(id in prev)) return prev;
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
     const lastSeen = readLastSeen();
     lastSeen[id] = new Date().toISOString();
     writeLastSeen(lastSeen);
+    touchLastSeen();
   };
 
   useEffect(() => {
@@ -215,6 +201,9 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   }, [selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const selected = conversations.find(c => c.id === selectedId) ?? null;
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
+  const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
 
   const submitReply = async () => {
     if (!selected || !reply.trim()) return;
@@ -263,7 +252,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
               <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Sin conversaciones todavía.</div>
             ) : (
               conversations.map(c => {
-                const hasUnread = !!unreadCounts[c.id];
+                const hasUnread = new Date(c.updatedTime).getTime() > new Date(lastSeenMap[c.id] || 0).getTime();
                 return (
                   <div key={c.id} onClick={() => openConversation(c.id)} onMouseEnter={() => prefetchMessages(c.id)}
                     className="px-5 py-3.5 cursor-pointer border-b border-[#F2F4F7] transition"
@@ -274,9 +263,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>@{c.username}</div>
                       {hasUnread && (
-                        <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">
-                          {unreadCounts[c.id]} nuevo{unreadCounts[c.id] > 1 ? 's' : ''}
-                        </span>
+                        <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">Nuevo</span>
                       )}
                     </div>
                     <div className="text-[11.5px] font-semibold" style={{ color: hasUnread ? '#3B8E6F' : '#9AA0A8' }}>{timeAgo(c.updatedTime)}</div>
