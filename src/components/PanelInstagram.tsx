@@ -78,6 +78,17 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
       });
   };
 
+  const fetchingRef = useRef<Set<string>>(new Set());
+  const prefetchMessages = (id: string) => {
+    if (messagesCache.current[id] || fetchingRef.current.has(id)) return;
+    fetchingRef.current.add(id);
+    fetch(`/api/instagram/messages?conversationId=${id}`)
+      .then(r => r.json())
+      .then(d => { messagesCache.current[id] = d.messages ?? []; })
+      .catch(() => {})
+      .finally(() => fetchingRef.current.delete(id));
+  };
+
   const loadConversations = (silent = false) => {
     fetch('/api/instagram/conversations')
       .then(r => r.json())
@@ -86,6 +97,9 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         setConversations(convs);
         if (d.error) { if (!silent) setConfigured(false); if (!silent) showToast(d.error, false); return; }
         computeUnread(convs);
+        // Precarga las 5 conversaciones mas recientes en segundo plano
+        // para que abrirlas se sienta instantaneo.
+        convs.slice(0, 5).forEach(c => prefetchMessages(c.id));
       })
       .catch(() => { if (!silent) showToast('No se pudo cargar Instagram', false); })
       .finally(() => setLoading(false));
@@ -223,7 +237,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
               conversations.map(c => {
                 const hasUnread = !!unreadCounts[c.id];
                 return (
-                  <div key={c.id} onClick={() => openConversation(c.id)}
+                  <div key={c.id} onClick={() => openConversation(c.id)} onMouseEnter={() => prefetchMessages(c.id)}
                     className="px-5 py-3.5 cursor-pointer border-b border-[#F2F4F7] transition"
                     style={{
                       background: hasUnread ? '#EAF7F1' : selectedId === c.id ? '#F6F8FA' : undefined,
