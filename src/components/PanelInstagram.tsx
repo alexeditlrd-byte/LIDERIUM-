@@ -13,6 +13,7 @@ interface Message {
   id: string;
   fromId: string;
   text: string;
+  shareLink: string | null;
   createdTime: string;
 }
 
@@ -73,7 +74,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const newMsg = { id: `local-${Date.now()}`, fromId: 'me', text: reply, createdTime: new Date().toISOString() };
+      const newMsg = { id: `local-${Date.now()}`, fromId: 'me', text: reply, shareLink: null, createdTime: new Date().toISOString() };
       setMessages(m => {
         const updated = [...m, newMsg];
         messagesCache.current[selected.id] = updated;
@@ -141,8 +142,13 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                             color: isMe ? '#fff' : '#15171C',
                             border: isMe ? 'none' : '1px solid #ECEEF2',
                           }}>
-                          {m.text ? m.text : (
-                            <span className="italic" style={{ color: isMe ? '#AEB4BE' : '#9AA0A8' }}>📎 Contenido no disponible (foto, reel o sticker)</span>
+                          {m.text ? m.text : m.shareLink ? (
+                            <a href={m.shareLink} target="_blank" rel="noopener noreferrer"
+                              className="underline font-semibold" style={{ color: isMe ? '#9fc3e3' : '#2E6CA0' }}>
+                              🔗 Ver reel / publicación compartida
+                            </a>
+                          ) : (
+                            <span className="italic" style={{ color: isMe ? '#AEB4BE' : '#9AA0A8' }}>📎 Contenido no disponible (foto o sticker)</span>
                           )}
                         </div>
                       </div>
