@@ -45,6 +45,11 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [sending, setSending] = useState(false);
   const messagesCache = useRef<Record<string, Message[]>>({});
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+  }, [messages, selectedId]);
 
   const computeUnread = (convs: Conversation[]) => {
     const lastSeen = readLastSeen();
@@ -275,6 +280,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     );
                   })
                 )}
+                <div ref={messagesEndRef} />
               </div>
               <div className="flex gap-[10px] px-6 py-4 border-t border-[#F0F2F5]">
                 <input
