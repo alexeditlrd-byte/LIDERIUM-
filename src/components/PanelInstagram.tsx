@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 
 interface Conversation {
   id: string;
@@ -107,6 +108,36 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     }, 8000);
     return () => clearInterval(interval);
   }, [selectedId]);
+
+  // Refs para que la suscripción en tiempo real (que se arma una sola vez)
+  // siempre vea el estado más reciente sin tener que reconectarse.
+  const conversationsRef = useRef<Conversation[]>([]);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
+  const selectedIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedIdRef.current = selectedId; }, [selectedId]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('ig-events')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ig_events' }, payload => {
+        const participantId = (payload.new as { participant_id?: string }).participant_id;
+        if (!participantId) return;
+        loadConversations(true);
+        const conv = conversationsRef.current.find(c => c.participantId === participantId);
+        if (conv) {
+          fetch(`/api/instagram/messages?conversationId=${conv.id}`)
+            .then(r => r.json())
+            .then(d => {
+              const msgs: Message[] = d.messages ?? [];
+              messagesCache.current[conv.id] = msgs;
+              if (selectedIdRef.current === conv.id) setMessages(msgs);
+            })
+            .catch(() => {});
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const openConversation = (id: string) => {
     setSelectedId(id);
