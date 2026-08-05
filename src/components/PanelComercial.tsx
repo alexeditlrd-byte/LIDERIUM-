@@ -117,6 +117,26 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
     fetch('/api/finanzas/pagos').then(r => r.json()).then(d => setAllPagos(d.pagos ?? [])).catch(() => {});
   }, []);
 
+  const [reuniones, setReuniones] = useState<{ client_slug: string }[]>([]);
+  useEffect(() => {
+    fetch('/api/reuniones').then(r => r.json()).then(d => setReuniones(d.meetings ?? [])).catch(() => {});
+  }, []);
+
+  const comercialStats = useMemo(() => {
+    const leadIdsConReunion = new Set(reuniones.map(m => m.client_slug));
+    return RESPONSABLES.map(nombre => {
+      const propios = leads.filter(l => l.responsable === nombre);
+      const asignados = propios.length;
+      const nuevos = propios.filter(l => l.estado === 'Nuevo').length;
+      const contactados = propios.filter(l => l.estado === 'Contactado').length;
+      const ganados = propios.filter(l => l.estado === 'Ganado').length;
+      const perdidos = propios.filter(l => l.estado === 'Perdido').length;
+      const reunionesAgendadas = propios.filter(l => leadIdsConReunion.has(l.id)).length;
+      const tasaConversion = asignados > 0 ? Math.round((ganados / asignados) * 100) : 0;
+      return { nombre, asignados, nuevos, contactados, reunionesAgendadas, ganados, perdidos, tasaConversion };
+    });
+  }, [leads, reuniones]);
+
   const [leadPagos, setLeadPagos] = useState<Pago[]>([]);
   const [showPagoForm, setShowPagoForm] = useState(false);
   const [pagoMonto, setPagoMonto] = useState('');
@@ -257,9 +277,17 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+
+      if (data.duplicate) {
+        setShowAddForm(false);
+        showToast(`Ya existe un lead con este WhatsApp: ${data.lead.nombre} (responsable: ${data.lead.responsable || 'sin asignar'}). No se creó uno nuevo.`, false);
+        setSubmitting(false);
+        return;
+      }
+
       setLeads(ls => [data.lead, ...ls]);
       setShowAddForm(false);
-      showToast(`Lead ${draft.nombre} guardado en el Google Sheet`);
+      showToast(`Lead ${draft.nombre} guardado — asignado a ${data.lead.responsable || 'sin responsable'}`);
 
       // Si ya viene con abono y está en fase Cierre, lo registramos de una
       // vez como pago con fecha (para que aparezca automático en Finanzas).
@@ -362,6 +390,33 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
             <div className="text-[11px] text-[#8A929E] font-bold uppercase tracking-[0.05em]">{kpi.label}</div>
             <div className="font-grotesk font-bold text-[26px] tracking-[-0.02em] mt-1.5" style={{ color: kpi.color }}>{kpi.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Carga por comercial */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        {comercialStats.map(s => (
+          <div key={s.nombre} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-grotesk font-bold text-[16px] text-[#15171C]">{s.nombre}</div>
+              <div className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">{s.asignados} asignados</div>
+            </div>
+            <div className="grid grid-cols-3 gap-2.5 text-center">
+              {[
+                { label: 'Nuevos', value: s.nuevos, color: '#1F9B6E' },
+                { label: 'Contactados', value: s.contactados, color: '#2E6CA0' },
+                { label: 'Reuniones', value: s.reunionesAgendadas, color: '#7C5CBF' },
+                { label: 'Ganados', value: s.ganados, color: '#B5740F' },
+                { label: 'Perdidos', value: s.perdidos, color: '#D14343' },
+                { label: 'Conversión', value: `${s.tasaConversion}%`, color: '#15171C' },
+              ].map(m => (
+                <div key={m.label} className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] py-2.5">
+                  <div className="font-grotesk font-bold text-[16px]" style={{ color: m.color }}>{m.value}</div>
+                  <div className="text-[9.5px] font-bold text-[#9AA0A8] uppercase tracking-[0.03em] mt-0.5">{m.label}</div>
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>

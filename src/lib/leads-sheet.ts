@@ -113,6 +113,38 @@ function patchToColumns(patch: Partial<LeadInput>) {
   return row;
 }
 
+// Orden de desempate cuando dos comerciales tienen la misma carga —
+// también es el orden por defecto si la tabla "comerciales" no existe/está vacía.
+const COMERCIALES_ORDEN = ['Maryori', 'Winona'];
+
+function normalizePhone(numero: string) {
+  return (numero || '').replace(/[^0-9]/g, '');
+}
+
+// Asigna el lead nuevo al comercial disponible con menos leads en este
+// momento (empate se rompe con COMERCIALES_ORDEN). Con dos comerciales
+// arrancando parejo esto da el mismo resultado que un Round Robin
+// clásico, pero además se autobalancea solo y respeta disponibilidad
+// sin tocar los leads ya asignados.
+async function assignResponsable(): Promise<string> {
+  const { data: comerciales } = await supabaseAdmin.from('comerciales').select('nombre, disponible');
+  const disponibles = (comerciales && comerciales.length > 0)
+    ? comerciales.filter(c => c.disponible).map(c => c.nombre)
+    : COMERCIALES_ORDEN;
+  if (disponibles.length === 0) return '';
+  if (disponibles.length === 1) return disponibles[0];
+
+  const { data: rows } = await supabaseAdmin.from('leads').select('responsable');
+  const counts: Record<string, number> = {};
+  for (const nombre of disponibles) counts[nombre] = 0;
+  for (const r of rows ?? []) {
+    if (r.responsable && counts[r.responsable] !== undefined) counts[r.responsable]++;
+  }
+
+  const ordenados = [...disponibles].sort((a, b) => COMERCIALES_ORDEN.indexOf(a) - COMERCIALES_ORDEN.indexOf(b));
+  return ordenados.reduce((min, actual) => (counts[actual] < counts[min] ? actual : min), ordenados[0]);
+}
+
 export async function listLeads(): Promise<Lead[]> {
   const { data, error } = await supabaseAdmin
     .from('leads')
@@ -122,15 +154,24 @@ export async function listLeads(): Promise<Lead[]> {
   return (data ?? []).map(rowToLead);
 }
 
-export async function createLead(input: LeadInput): Promise<Lead> {
+export async function createLead(input: LeadInput): Promise<{ lead: Lead; duplicate: boolean }> {
+  const phone = normalizePhone(input.numero);
+  if (phone) {
+    const { data: existing } = await supabaseAdmin.from('leads').select('*');
+    const match = (existing ?? []).find((r) => normalizePhone(r.numero) === phone);
+    if (match) return { lead: rowToLead(match as LeadRow), duplicate: true };
+  }
+
+  const responsable = input.responsable || await assignResponsable();
+
   const id = String(Date.now());
   const { data, error } = await supabaseAdmin
     .from('leads')
-    .insert({ id, ...patchToColumns(input) })
+    .insert({ id, ...patchToColumns(input), responsable })
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return rowToLead(data);
+  return { lead: rowToLead(data), duplicate: false };
 }
 
 export async function updateLead(id: string, patch: Partial<LeadInput>): Promise<Lead> {

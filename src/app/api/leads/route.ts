@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Nombre, WhatsApp y precio son obligatorios.' }, { status: 400 });
   }
   try {
-    const lead = await createLead(body);
-    return NextResponse.json({ lead });
+    const { lead, duplicate } = await createLead(body);
+    return NextResponse.json({ lead, duplicate });
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? 'Error al guardar el lead en el Google Sheet' }, { status: 502 });
   }
