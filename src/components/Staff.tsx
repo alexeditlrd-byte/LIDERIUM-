@@ -7,6 +7,7 @@ import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
 import PanelFinanzas from '@/components/PanelFinanzas';
 import PanelInstagram from '@/components/PanelInstagram';
+import Dropdown from '@/components/Dropdown';
 
 interface StaffProps {
   onLogout: () => void;
@@ -870,12 +871,8 @@ export default function Staff({ onLogout }: StaffProps) {
                         </div>
                         <div>
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plan</label>
-                          <select value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
-                            className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
-                            <option>Esencial</option>
-                            <option>Crecimiento</option>
-                            <option>Pro</option>
-                          </select>
+                          <Dropdown value={form.plan} onChange={v => setForm(f => ({ ...f, plan: v }))} options={['Esencial', 'Crecimiento', 'Pro']}
+                            className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white" />
                         </div>
                         <div className="bg-[#F6F8FA] border border-[#E7E9EE] rounded-[12px] px-4 py-3 flex items-center justify-between">
                           <div><div className="text-[12px] font-black text-[#8A929E] uppercase tracking-[0.04em]">Contraseña generada</div><div className="font-black text-[15px] text-[#15171C] tracking-[0.06em] mt-0.5">{genPass}</div></div>
@@ -1057,11 +1054,9 @@ export default function Staff({ onLogout }: StaffProps) {
                       <span className="text-[14px] text-[#5A6270] font-semibold">{c.plan}</span>
                       <span className="font-black text-[14px] text-[#15171C]">{c.amount}</span>
                       <div className="relative w-max">
-                        <select
+                        <Dropdown
                           value={c.status ?? 'Al día'}
-                          disabled={savingStatusSlug === c.slug}
-                          onChange={async e => {
-                            const newStatus = e.target.value;
+                          onChange={async newStatus => {
                             setSavingStatusSlug(c.slug);
                             const res = await fetch('/api/clientes', {
                               method: 'PATCH',
@@ -1076,16 +1071,10 @@ export default function Staff({ onLogout }: StaffProps) {
                             }
                             setSavingStatusSlug(null);
                           }}
-                          style={{ background: pill.bg, color: pill.color }}
-                          className="text-[12px] font-black pl-3 pr-6 py-1 rounded-full border-none cursor-pointer outline-none appearance-none disabled:opacity-60"
-                        >
-                          <option value="Al día">Al día</option>
-                          <option value="Pendiente">Pendiente</option>
-                          <option value="Vencido">Vencido</option>
-                        </select>
-                        <svg className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ color: pill.color }}>
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
+                          options={['Al día', 'Pendiente', 'Vencido']}
+                          style={{ background: pill.bg, color: pill.color, opacity: savingStatusSlug === c.slug ? 0.6 : 1 }}
+                          className="text-[12px] font-black pl-3 pr-2 py-1 rounded-full border-none cursor-pointer outline-none"
+                        />
                       </div>
                       <span className="text-[14px] text-[#5A6270] font-semibold">—</span>
                       <div>
@@ -1169,15 +1158,11 @@ export default function Staff({ onLogout }: StaffProps) {
                         </div>
                         <div>
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cliente</label>
-                          <select value={reunionForm.clientSlug} onChange={e => {
-                            const lead = comercialLeads.find(l => l.id === e.target.value);
-                            setReunionForm(f => ({ ...f, clientSlug: e.target.value, clientName: lead?.nombre ?? '', clientEmail: '', mentorRole: lead?.plan ?? '' }));
-                          }} className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
-                            <option value="">Selecciona cliente…</option>
-                            {comercialLeads.map(lead => (
-                              <option key={lead.id} value={lead.id}>{lead.nombre}</option>
-                            ))}
-                          </select>
+                          <Dropdown value={reunionForm.clientSlug} onChange={slug => {
+                            const lead = comercialLeads.find(l => l.id === slug);
+                            setReunionForm(f => ({ ...f, clientSlug: slug, clientName: lead?.nombre ?? '', clientEmail: '', mentorRole: lead?.plan ?? '' }));
+                          }} className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                            options={[{ value: '', label: 'Selecciona cliente…' }, ...comercialLeads.map(lead => ({ value: lead.id, label: lead.nombre }))]} />
                           {(() => {
                             const selectedLead = comercialLeads.find(l => l.id === reunionForm.clientSlug);
                             if (!selectedLead) return null;
@@ -1191,14 +1176,11 @@ export default function Staff({ onLogout }: StaffProps) {
                         <div className="grid grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Responsable</label>
-                            <select value={reunionForm.mentor} onChange={e => {
-                              const mentor = e.target.value;
+                            <Dropdown value={reunionForm.mentor} onChange={mentor => {
                               setReunionForm(f => ({ ...f, mentor, mentorEmail: RESPONSABLE_EMAIL[mentor] ?? f.mentorEmail }));
                             }}
-                              className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
-                              <option value="">Selecciona…</option>
-                              {Object.keys(RESPONSABLE_EMAIL).map(r => <option key={r} value={r}>{r}</option>)}
-                            </select>
+                              className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                              options={[{ value: '', label: 'Selecciona…' }, ...Object.keys(RESPONSABLE_EMAIL).map(r => ({ value: r, label: r }))]} />
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plan</label>
@@ -1226,13 +1208,9 @@ export default function Staff({ onLogout }: StaffProps) {
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Duración</label>
-                            <select value={reunionForm.duracion} onChange={e => setReunionForm(f => ({ ...f, duracion: +e.target.value }))}
-                              className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white">
-                              <option value={30}>30 min</option>
-                              <option value={45}>45 min</option>
-                              <option value={60}>1 hora</option>
-                              <option value={90}>1.5 horas</option>
-                            </select>
+                            <Dropdown value={String(reunionForm.duracion)} onChange={v => setReunionForm(f => ({ ...f, duracion: +v }))}
+                              className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                              options={[{ value: '30', label: '30 min' }, { value: '45', label: '45 min' }, { value: '60', label: '1 hora' }, { value: '90', label: '1.5 horas' }]} />
                           </div>
                         </div>
                         {reunionErr && <div className="text-[#D14343] text-[13px] font-semibold">{reunionErr}</div>}
@@ -1281,12 +1259,10 @@ export default function Staff({ onLogout }: StaffProps) {
                 <div className="px-4 pb-1.5 flex items-center justify-between gap-3">
                   <h3 className="font-grotesk font-semibold text-[18px] text-[#15171C]">Próximas reuniones</h3>
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <select value={ownerFilter} onChange={e => setOwnerFilter(e.target.value)}
-                      className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none">
-                      <option value="Todos">Propietario: Todos</option>
-                      <option value="Terry">Terry</option>
-                      <option value="Santiago">Santiago</option>
-                    </select>
+                    <Dropdown value={ownerFilter} onChange={setOwnerFilter}
+                      className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none"
+                      align="right"
+                      options={[{ value: 'Todos', label: 'Propietario: Todos' }, { value: 'Terry', label: 'Terry' }, { value: 'Santiago', label: 'Santiago' }]} />
                     <button onClick={goToToday} className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0">Hoy</button>
                   </div>
                 </div>

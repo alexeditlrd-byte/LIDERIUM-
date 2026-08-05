@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Dropdown from '@/components/Dropdown';
 
 interface PanelFinanzasProps {
   showToast: (text: string, ok?: boolean) => void;
@@ -246,10 +247,8 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     <div className="flex flex-col gap-5">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-          className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[13px] font-bold text-[#3C434F] cursor-pointer outline-none">
-          {monthOptions.map(k => <option key={k} value={k}>{monthLabel(k)}</option>)}
-        </select>
+        <Dropdown value={selectedMonth} onChange={setSelectedMonth} options={monthOptions.map(k => ({ value: k, label: monthLabel(k) }))}
+          className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[13px] font-bold text-[#3C434F] cursor-pointer outline-none" />
         <button onClick={() => { setConfigForm(config); setShowConfig(true); }}
           className="text-[12.5px] font-bold text-[#5A6270] bg-white border border-[#E2E5EA] rounded-[10px] px-3 h-[42px] cursor-pointer hover:border-steel transition">
           Configurar caja inicial

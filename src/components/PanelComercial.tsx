@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Lead, LeadInput } from '@/lib/leads-sheet';
+import Dropdown from '@/components/Dropdown';
 
 interface PanelComercialProps {
   showToast: (text: string, ok?: boolean) => void;
@@ -364,18 +365,13 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           ))}
         </div>
 
-        <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
-          className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
-          {monthOptions.map(mo => <option key={mo.value} value={mo.value}>{mo.label}</option>)}
-        </select>
+        <Dropdown value={selectedMonth} onChange={setSelectedMonth} options={monthOptions}
+          className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
 
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Responsable</span>
-          <select value={responsableFilter} onChange={e => setResponsableFilter(e.target.value)}
-            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none">
-            <option value="Todos">Todos</option>
-            {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
-          </select>
+          <Dropdown value={responsableFilter} onChange={setResponsableFilter} options={['Todos', ...RESPONSABLES]}
+            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
         </div>
       </div>
 
@@ -475,11 +471,9 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   </div>
                   <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.responsable}</div>
                   <div onClick={e => e.stopPropagation()}>
-                    <select value={lead.estado} onChange={e => patchLead(lead.id, { estado: e.target.value as Lead['estado'] })}
+                    <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
                       style={{ background: ec.bg, color: ec.color }}
-                      className="w-full border-none rounded-[7px] px-2.5 py-[6px] text-[11.5px] font-black cursor-pointer outline-none">
-                      {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
-                    </select>
+                      className="w-full border-none rounded-[7px] px-2.5 py-[6px] text-[11.5px] font-black cursor-pointer outline-none" />
                   </div>
                   <div onClick={e => e.stopPropagation()} className="flex gap-[6px] justify-end">
                     <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer" title="WhatsApp"
@@ -540,10 +534,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                     <div onClick={e => e.stopPropagation()} className="flex gap-[6px] mt-2.5">
                       <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer"
                         className="flex-1 text-center py-[6px] rounded-[7px] bg-[#EAF7F1] text-[#1F9B6E] text-[10.5px] font-bold no-underline">WhatsApp</a>
-                      <select value={lead.estado} onChange={e => patchLead(lead.id, { estado: e.target.value as Lead['estado'] })}
-                        className="bg-[#F4F6F8] border border-[#E2E5EA] text-[#15171C] rounded-[7px] text-[10.5px] font-semibold px-1 outline-none cursor-pointer">
-                        {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
-                      </select>
+                      <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
+                        className="bg-[#F4F6F8] border border-[#E2E5EA] text-[#15171C] rounded-[7px] text-[10.5px] font-semibold px-1 outline-none cursor-pointer" />
                     </div>
                   </div>
                 ))}
@@ -592,35 +584,25 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div>
                 <label className={labelClass}>Plan</label>
-                <select className={inputClass} value={draft.plan} onChange={e => {
-                  const plan = e.target.value;
+                <Dropdown className={inputClass} value={draft.plan} onChange={plan => {
                   setDraft(d => ({ ...d, plan, precio: PLAN_PRICES[plan] ?? d.precio }));
-                }}>
-                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option><option value="INFOPRODUCTO TERRY">INFOPRODUCTO TERRY</option>
-                </select>
+                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY']} />
               </div>
               <div>
                 <label className={labelClass}>Responsable</label>
-                <select className={inputClass} value={draft.responsable} onChange={e => setDraft(d => ({ ...d, responsable: e.target.value }))}>
-                  <option value="">Selecciona…</option>
-                  {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <Dropdown className={inputClass} value={draft.responsable} onChange={v => setDraft(d => ({ ...d, responsable: v }))}
+                  options={[{ value: '', label: 'Selecciona…' }, ...RESPONSABLES.map(r => ({ value: r, label: r }))]} />
               </div>
               <div>
                 <label className={labelClass}>Propietario *</label>
-                <select className={inputClass} value={draft.propietario} onChange={e => setDraft(d => ({ ...d, propietario: e.target.value }))}>
-                  <option value="">Selecciona…</option>
-                  {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Dropdown className={inputClass} value={draft.propietario} onChange={v => setDraft(d => ({ ...d, propietario: v }))}
+                  options={[{ value: '', label: 'Selecciona…' }, ...PROPIETARIOS.map(p => ({ value: p, label: p }))]} />
               </div>
               <div>
                 <label className={labelClass}>Fase de venta</label>
-                <select className={inputClass} value={draft.faseVenta} onChange={e => {
-                  const faseVenta = e.target.value;
+                <Dropdown className={inputClass} value={draft.faseVenta} onChange={faseVenta => {
                   setDraft(d => ({ ...d, faseVenta, probabilidad: FASE_PROBABILIDAD[faseVenta] ?? d.probabilidad }));
-                }}>
-                  <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
-                </select>
+                }} options={['Prospección', 'Propuesta', 'Negociación', 'Cierre']} />
               </div>
               <div>
                 <label className={labelClass}>Probabilidad (%)</label>
@@ -628,9 +610,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
               <div>
                 <label className={labelClass}>Estado</label>
-                <select className={inputClass} value={draft.estado} onChange={e => setDraft(d => ({ ...d, estado: e.target.value as Lead['estado'] }))}>
-                  {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
-                </select>
+                <Dropdown className={inputClass} value={draft.estado} onChange={v => setDraft(d => ({ ...d, estado: v as Lead['estado'] }))} options={ESTADOS} />
               </div>
               <div>
                 <label className={labelClass}>Fecha de inicio</label>
@@ -652,9 +632,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               )}
               <div>
                 <label className={labelClass}>Prioridad</label>
-                <select className={inputClass} value={draft.prioridad} onChange={e => setDraft(d => ({ ...d, prioridad: e.target.value as Lead['prioridad'] }))}>
-                  {PRIORIDADES.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Dropdown className={inputClass} value={draft.prioridad} onChange={v => setDraft(d => ({ ...d, prioridad: v as Lead['prioridad'] }))} options={PRIORIDADES} />
               </div>
               <div className="col-span-2">
                 <label className={labelClass}>Observación</label>
@@ -713,11 +691,9 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
             <div className="mt-5">
               <label className={labelClass}>Estado del lead</label>
-              <select value={selectedLead.estado} onChange={e => patchLead(selectedLead.id, { estado: e.target.value as Lead['estado'] })}
+              <Dropdown value={selectedLead.estado} onChange={v => patchLead(selectedLead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
                 style={{ background: ESTADO_STYLE[selectedLead.estado].bg, color: ESTADO_STYLE[selectedLead.estado].color }}
-                className="w-full rounded-[10px] px-3 py-[10px] text-[13px] font-black border-none outline-none cursor-pointer">
-                {ESTADOS.map(es => <option key={es} value={es}>{es}</option>)}
-              </select>
+                className="w-full rounded-[10px] px-3 py-[10px] text-[13px] font-black border-none outline-none cursor-pointer" />
             </div>
 
             <div className="grid grid-cols-2 gap-2.5 mt-4">
@@ -734,39 +710,29 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               ))}
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Responsable</div>
-                <select defaultValue={selectedLead.responsable} onChange={e => patchLead(selectedLead.id, { responsable: e.target.value })}
-                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="">Selecciona…</option>
-                  {RESPONSABLES.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
+                <Dropdown value={selectedLead.responsable} onChange={v => patchLead(selectedLead.id, { responsable: v })}
+                  options={[{ value: '', label: 'Selecciona…' }, ...RESPONSABLES.map(r => ({ value: r, label: r }))]}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Propietario</div>
-                <select defaultValue={selectedLead.propietario} onChange={e => patchLead(selectedLead.id, { propietario: e.target.value })}
-                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="">Selecciona…</option>
-                  {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <Dropdown value={selectedLead.propietario} onChange={v => patchLead(selectedLead.id, { propietario: v })}
+                  options={[{ value: '', label: 'Selecciona…' }, ...PROPIETARIOS.map(p => ({ value: p, label: p }))]}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Plan</div>
-                <select defaultValue={selectedLead.plan} onChange={e => {
-                  const plan = e.target.value;
+                <Dropdown value={selectedLead.plan} onChange={plan => {
                   patchLead(selectedLead.id, { plan, precio: PLAN_PRICES[plan] ?? selectedLead.precio });
-                }}
-                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="SKOOL">SKOOL</option><option value="SERVICIO">SERVICIO</option><option value="INFOPRODUCTO TERRY">INFOPRODUCTO TERRY</option>
-                </select>
+                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY']}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Fase de venta</div>
-                <select defaultValue={selectedLead.faseVenta} onChange={e => {
-                  const faseVenta = e.target.value;
+                <Dropdown value={selectedLead.faseVenta} onChange={faseVenta => {
                   patchLead(selectedLead.id, { faseVenta, probabilidad: FASE_PROBABILIDAD[faseVenta] ?? selectedLead.probabilidad });
-                }}
-                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0">
-                  <option value="Prospección">Prospección</option><option value="Propuesta">Propuesta</option><option value="Negociación">Negociación</option><option value="Cierre">Cierre</option>
-                </select>
+                }} options={['Prospección', 'Propuesta', 'Negociación', 'Cierre']}
+                  className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                 <div className={labelClass}>Probabilidad</div>
