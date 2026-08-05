@@ -151,7 +151,6 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const channel = supabase
       .channel('ig-events')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ig_events' }, payload => {
-        console.log('[ig-realtime] evento recibido:', payload.new);
         const row = payload.new as { participant_id?: string; text_preview?: string | null; created_at?: string };
         const participantId = row.participant_id;
         if (!participantId) return;
@@ -183,7 +182,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         }
         loadConversations(true);
       })
-      .subscribe(status => console.log('[ig-realtime] estado de la conexión:', status));
+      .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
