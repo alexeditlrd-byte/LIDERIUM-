@@ -141,7 +141,9 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                             color: isMe ? '#fff' : '#15171C',
                             border: isMe ? 'none' : '1px solid #ECEEF2',
                           }}>
-                          {m.text}
+                          {m.text ? m.text : (
+                            <span className="italic" style={{ color: isMe ? '#AEB4BE' : '#9AA0A8' }}>📎 Contenido no disponible (foto, reel o sticker)</span>
+                          )}
                         </div>
                       </div>
                     );
