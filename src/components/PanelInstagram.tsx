@@ -151,7 +151,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const channel = supabase
       .channel('ig-events')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ig_events' }, payload => {
-        const participantId = (payload.new as { participant_id?: string }).participant_id;
+        const row = payload.new as { participant_id?: string; text_preview?: string | null; created_at?: string };
+        const participantId = row.participant_id;
         if (!participantId) return;
         const conv = conversationsRef.current.find(c => c.participantId === participantId);
         if (conv) {
@@ -160,9 +161,23 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
           if (selectedIdRef.current !== conv.id) {
             setUnreadCounts(prev => ({ ...prev, [conv.id]: (prev[conv.id] || 0) + 1 }));
           }
+          // El aviso de Meta ya trae el texto — lo mostramos de una vez,
+          // sin esperar a volver a preguntarle a la API de Instagram.
+          if (row.text_preview) {
+            const optimistic: Message = {
+              id: `rt-${Date.now()}`,
+              fromId: conv.participantId,
+              text: row.text_preview,
+              shareLink: null,
+              createdTime: row.created_at || new Date().toISOString(),
+            };
+            const updated = [...(messagesCache.current[conv.id] || []), optimistic];
+            messagesCache.current[conv.id] = updated;
+            if (selectedIdRef.current === conv.id) setMessages(updated);
+          }
           fetchAndCacheMessages(conv.id);
-          // Reintenta una vez mas por si Instagram todavia no habia
-          // indexado el mensaje en el primer intento.
+          // Reintenta una vez mas por si era una foto/reel (sin texto) y
+          // la API de Instagram todavia no lo habia indexado.
           setTimeout(() => fetchAndCacheMessages(conv.id), 2500);
         }
         loadConversations(true);
