@@ -22,6 +22,17 @@ function timeAgo(iso: string) {
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+const LAST_SEEN_KEY = 'liderium_ig_last_seen';
+
+function readLastSeen(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try { return JSON.parse(localStorage.getItem(LAST_SEEN_KEY) || '{}'); } catch { return {}; }
+}
+function writeLastSeen(data: Record<string, string>) {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(LAST_SEEN_KEY, JSON.stringify(data));
+}
+
 export default function PanelInstagram({ showToast }: { showToast: (text: string, ok?: boolean) => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,19 +43,62 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const messagesCache = useRef<Record<string, Message[]>>({});
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+
+  const computeUnread = (convs: Conversation[]) => {
+    const lastSeen = readLastSeen();
+    if (Object.keys(lastSeen).length === 0) {
+      // Primera vez que se usa esta pestaña: no marcamos todo el historial
+      // como no leído, solo lo que llegue de aquí en adelante.
+      const baseline: Record<string, string> = {};
+      convs.forEach(c => { baseline[c.id] = c.updatedTime; });
+      writeLastSeen(baseline);
+      setUnreadCounts({});
+      return;
+    }
+    convs
+      .filter(c => new Date(c.updatedTime) > new Date(lastSeen[c.id] || 0))
+      .forEach(c => {
+        fetch(`/api/instagram/messages?conversationId=${c.id}`)
+          .then(r => r.json())
+          .then(d => {
+            const msgs: Message[] = d.messages ?? [];
+            messagesCache.current[c.id] = msgs;
+            const since = new Date(lastSeen[c.id] || 0);
+            const count = msgs.filter(m => m.fromId === c.participantId && new Date(m.createdTime) > since).length;
+            if (count > 0) setUnreadCounts(prev => ({ ...prev, [c.id]: count }));
+          })
+          .catch(() => {});
+      });
+  };
 
   const loadConversations = () => {
     fetch('/api/instagram/conversations')
       .then(r => r.json())
       .then(d => {
-        setConversations(d.conversations ?? []);
-        if (d.error) { setConfigured(false); showToast(d.error, false); }
+        const convs: Conversation[] = d.conversations ?? [];
+        setConversations(convs);
+        if (d.error) { setConfigured(false); showToast(d.error, false); return; }
+        computeUnread(convs);
       })
       .catch(() => showToast('No se pudo cargar Instagram', false))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { loadConversations(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const openConversation = (id: string) => {
+    setSelectedId(id);
+    setUnreadCounts(prev => {
+      if (!(id in prev)) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+    const lastSeen = readLastSeen();
+    lastSeen[id] = new Date().toISOString();
+    writeLastSeen(lastSeen);
+  };
 
   useEffect(() => {
     if (!selectedId) return;
@@ -110,9 +164,16 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
               <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Sin conversaciones todavía.</div>
             ) : (
               conversations.map(c => (
-                <div key={c.id} onClick={() => setSelectedId(c.id)}
+                <div key={c.id} onClick={() => openConversation(c.id)}
                   className={`px-5 py-3.5 cursor-pointer border-b border-[#F2F4F7] transition ${selectedId === c.id ? 'bg-[#F6F8FA]' : 'hover:bg-[#FAFBFC]'}`}>
-                  <div className="text-[13.5px] font-bold text-[#15171C]">@{c.username}</div>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-[13.5px] font-bold text-[#15171C] truncate">@{c.username}</div>
+                    {!!unreadCounts[c.id] && (
+                      <span className="flex-shrink-0 min-w-[19px] h-[19px] px-1 rounded-full bg-[#1F9B6E] text-white text-[10.5px] font-bold flex items-center justify-center">
+                        {unreadCounts[c.id]}
+                      </span>
+                    )}
+                  </div>
                   <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{timeAgo(c.updatedTime)}</div>
                 </div>
               ))
