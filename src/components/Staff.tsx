@@ -453,7 +453,7 @@ export default function Staff({ onLogout }: StaffProps) {
     return () => clearInterval(interval);
   }, []);
   return (
-    <div className="relative min-h-screen bg-[#F5F6F8] md:grid md:overflow-hidden" style={{ gridTemplateColumns: '256px 1fr' }}>
+    <div className="relative min-h-screen bg-[#F5F6F8] md:grid md:h-screen md:overflow-hidden" style={{ gridTemplateColumns: '256px 1fr' }}>
 
       {/* ── TOAST ── */}
       {toast && (
@@ -543,7 +543,7 @@ export default function Staff({ onLogout }: StaffProps) {
       </aside>
 
       {/* MAIN */}
-      <div className="relative z-10 flex flex-col min-w-0">
+      <div className="relative z-10 flex flex-col min-w-0 md:min-h-0">
         {/* Header */}
         <header className="bg-[rgba(238,240,244,.82)] backdrop-blur-[12px] border-b border-[rgba(0,0,0,.06)] px-4 md:px-[38px] py-4 md:py-5 flex items-center justify-between sticky top-0 z-20">
           <div className="flex items-center gap-3">
