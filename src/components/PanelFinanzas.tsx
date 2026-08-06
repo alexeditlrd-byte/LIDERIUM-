@@ -7,7 +7,7 @@ interface PanelFinanzasProps {
   showToast: (text: string, ok?: boolean) => void;
 }
 
-interface LeadLite { id: string; nombre: string; faseVenta: string; plan: string; }
+interface LeadLite { id: string; nombre: string; faseVenta: string; plan: string; estado: string; }
 interface Pago { id: string; leadId: string; clienteNombre: string; monto: number; fecha: string; nota: string; }
 interface Movimiento { id: string; tipo: 'ingreso' | 'egreso'; concepto: string; categoria: string; monto: number; fecha: string; nota: string; }
 interface Config { mesInicio: string; cajaInicial: number; }
@@ -82,8 +82,8 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
       fetch('/api/finanzas/movimientos').then(r => r.json()),
       fetch('/api/finanzas/config').then(r => r.json()),
     ]).then(([leadsRes, pagosRes, movRes, cfgRes]) => {
-      const rawLeads: { id: string; nombre: string; faseVenta: string; plan: string }[] = leadsRes.leads ?? [];
-      setLeads(rawLeads.map(l => ({ id: l.id, nombre: l.nombre, faseVenta: l.faseVenta, plan: l.plan })));
+      const rawLeads: { id: string; nombre: string; faseVenta: string; plan: string; estado: string }[] = leadsRes.leads ?? [];
+      setLeads(rawLeads.map(l => ({ id: l.id, nombre: l.nombre, faseVenta: l.faseVenta, plan: l.plan, estado: l.estado })));
       setPagos(pagosRes.pagos ?? []);
       setMovimientos(movRes.movimientos ?? []);
       setConfig(cfgRes.config);
@@ -100,7 +100,10 @@ export default function PanelFinanzas({ showToast }: PanelFinanzasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const cerradoIds = useMemo(() => new Set(leads.filter(l => l.faseVenta === 'Cierre').map(l => l.id)), [leads]);
+  // Un lead cuenta como ingreso cuando su estado actual es "Ganado" — el
+  // pipeline garantiza que para llegar ahí ya pasó por fase Cierre, así
+  // que no hace falta validar historial aparte.
+  const cerradoIds = useMemo(() => new Set(leads.filter(l => l.estado === 'Ganado').map(l => l.id)), [leads]);
   const planPorLead = useMemo(() => new Map(leads.map(l => [l.id, l.plan])), [leads]);
 
   // Meses disponibles en el selector: un rango fijo (año anterior, actual y

@@ -226,8 +226,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   // "Ganados" e "Ingresos cerrados" se calculan con pagos reales del mes
   // seleccionado (por fecha de pago), no por el precio del contrato — un
-  // cliente en fase Cierre solo cuenta lo que efectivamente abonó ese mes.
-  const cerradoIds = useMemo(() => new Set(leads.filter(l => l.faseVenta === 'Cierre').map(l => l.id)), [leads]);
+  // cliente cuenta solo lo que efectivamente abonó ese mes. El pipeline
+  // garantiza que todo lead en estado "Ganado" ya pasó por fase Cierre,
+  // así que "Ganado" es la señal correcta de que el ingreso es real.
+  const cerradoIds = useMemo(() => new Set(leads.filter(l => l.estado === 'Ganado').map(l => l.id)), [leads]);
   const pagosDelMes = useMemo(
     () => allPagos.filter(p => monthKeyOf(p.fecha) === selectedMonth && cerradoIds.has(p.leadId)),
     [allPagos, cerradoIds, selectedMonth]
