@@ -312,23 +312,45 @@ export default function Staff({ onLogout }: StaffProps) {
   const handleUploadGuia = async () => {
     if (!guiaFile) return;
     setUploadingGuia(true);
-    const fd = new FormData();
-    fd.append('file', guiaFile);
-    fd.append('label', guiaLabel || guiaFile.name);
-    fd.append('uploadedBy', staffName);
-    if (currentFolder) fd.append('folderId', currentFolder.id);
     try {
-      const res = await fetch('/api/upload-guia', { method: 'POST', body: fd });
+      // 1) Pide una URL firmada y sube el archivo directo a Storage desde
+      // el navegador — así documentos grandes no pasan por nuestro
+      // servidor (que tiene un límite de 4.5MB por request).
+      const urlRes = await fetch('/api/guia-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: guiaFile.name }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+
+      const { error: uploadError } = await supabase.storage
+        .from('guias')
+        .uploadToSignedUrl(urlData.filePath, urlData.token, guiaFile);
+      if (uploadError) throw uploadError;
+
+      // 2) Guarda el registro del documento ya subido.
+      const res = await fetch('/api/guias', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          label: guiaLabel || guiaFile.name,
+          fileName: guiaFile.name,
+          filePath: urlData.filePath,
+          publicUrl: urlData.publicUrl,
+          mimeType: guiaFile.type,
+          uploadedBy: staffName,
+          folderId: currentFolder?.id,
+        }),
+      });
       const data = await res.json();
-      if (data.success) {
-        showToast('Documento subido a la guía');
-        setShowGuiaModal(false);
-        loadGuias();
-      } else {
-        showToast(data.error ?? 'Error al subir el documento', false);
-      }
-    } catch {
-      showToast('Error de conexión al subir el documento', false);
+      if (!res.ok || !data.success) throw new Error(data.error ?? 'Error al guardar el documento');
+
+      showToast('Documento subido a la guía');
+      setShowGuiaModal(false);
+      loadGuias();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'Error de conexión al subir el documento', false);
     }
     setUploadingGuia(false);
   };

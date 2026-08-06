@@ -27,6 +27,32 @@ export async function GET() {
   return NextResponse.json({ guias, folders });
 }
 
+// Guarda el registro del documento después de que el navegador ya subió
+// el archivo directo a Storage (ver /api/guia-upload-url).
+export async function POST(req: NextRequest) {
+  const { label, fileName, filePath, publicUrl, mimeType, uploadedBy, folderId } = await req.json();
+  if (!label || !fileName || !filePath || !publicUrl) {
+    return NextResponse.json({ error: 'Faltan datos del archivo subido' }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin.from('guias').insert({
+    label,
+    file_name: fileName,
+    file_path: filePath,
+    public_url: publicUrl,
+    mime_type: mimeType || '',
+    uploaded_by: uploadedBy || '',
+    folder_id: folderId || null,
+  }).select().single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  return NextResponse.json({
+    success: true,
+    guia: { id: data.id, label, fileName, link: publicUrl, mimeType, uploadedBy, uploadedAt: data.uploaded_at, folderId },
+  });
+}
+
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');
