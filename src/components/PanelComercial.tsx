@@ -118,6 +118,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [responsableFilter, setResponsableFilter] = useState('Todos');
+  const [dayFilter, setDayFilter] = useState('Todos');
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -235,6 +236,18 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   const monthLeads = useMemo(() => leads.filter(l => leadInMonth(l, selectedMonth)), [leads, selectedMonth]);
 
+  // Opciones del filtro "Día" — un día por cada fecha de creación que
+  // realmente tenga leads este mes, del más reciente al más antiguo.
+  const dayOptions = useMemo(() => {
+    const today = startOfDay(new Date());
+    const map = new Map<number, string>();
+    for (const l of monthLeads) {
+      const key = startOfDay(l.createdAt ? new Date(l.createdAt) : new Date());
+      if (!map.has(key)) map.set(key, dayGroupLabel(key, today));
+    }
+    return [...map.entries()].sort((a, b) => b[0] - a[0]).map(([key, label]) => ({ value: String(key), label }));
+  }, [monthLeads]);
+
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
     return monthLeads.filter(l => {
@@ -242,9 +255,13 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       if (filter === 'alta' && l.prioridad !== 'Alta') return false;
       if (filter === 'nuevo' && l.estado !== 'Nuevo') return false;
       if (responsableFilter !== 'Todos' && l.responsable.trim().toLowerCase() !== responsableFilter.toLowerCase()) return false;
+      if (dayFilter !== 'Todos') {
+        const key = startOfDay(l.createdAt ? new Date(l.createdAt) : new Date());
+        if (String(key) !== dayFilter) return false;
+      }
       return true;
     });
-  }, [monthLeads, search, filter, responsableFilter]);
+  }, [monthLeads, search, filter, responsableFilter, dayFilter]);
 
   const visibleGroups = useMemo(() => groupLeadsByDay(visible), [visible]);
 
@@ -395,12 +412,18 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           ))}
         </div>
 
-        <Dropdown value={selectedMonth} onChange={setSelectedMonth} options={monthOptions}
+        <Dropdown value={selectedMonth} onChange={v => { setSelectedMonth(v); setDayFilter('Todos'); }} options={monthOptions}
           className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
 
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Responsable</span>
           <Dropdown value={responsableFilter} onChange={setResponsableFilter} options={['Todos', ...RESPONSABLES]}
+            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Día</span>
+          <Dropdown value={dayFilter} onChange={setDayFilter} options={[{ value: 'Todos', label: 'Todos los días' }, ...dayOptions]}
             className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
         </div>
       </div>
