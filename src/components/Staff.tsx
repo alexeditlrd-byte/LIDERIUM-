@@ -84,6 +84,17 @@ const RESPONSABLE_EMAIL: Record<string, string> = {
 // choques — ambos reutilizan el mismo motor de disponibilidad.
 const RESPONSABLES_DISPONIBILIDAD = ['Winona', 'Maryori', 'Santiago'];
 const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago'];
+// Todas las personas que pueden configurar sus propias horas libres.
+const TODAS_DISPONIBILIDAD = ['Terry', 'Santiago', 'Winona', 'Maryori'];
+const DIAS_SEMANA = [
+  { valor: 1, label: 'Lun' }, { valor: 2, label: 'Mar' }, { valor: 3, label: 'Mié' },
+  { valor: 4, label: 'Jue' }, { valor: 5, label: 'Vie' }, { valor: 6, label: 'Sáb' }, { valor: 0, label: 'Dom' },
+];
+// Franja horaria que se puede marcar como libre, 07:00–21:00 cada 30 min.
+const HORAS_EDITABLES = Array.from({ length: 28 }, (_, i) => {
+  const t = 7 * 60 + i * 30;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+});
 
 const meetings = [
   { day: 'Hoy · Mar 17', time: '10:00', client: 'Aurora Café', type: 'Revisión de contenido', who: 'Mateo', c: '#2E6CA0' },
@@ -243,6 +254,79 @@ export default function Staff({ onLogout }: StaffProps) {
         .then(d => setAvailablePropietarioSlots(d.slots ?? []));
     }).catch(() => setAvailablePropietarioSlots([]));
   }, [reunionForm.propietario, reunionForm.fecha, reunionForm.duracion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Editor de "mis horas libres": cada persona marca a mano qué medias
+  // horas tiene disponibles por día, en vez de un solo bloque 9–18 fijo.
+  const [showDispModal, setShowDispModal] = useState(false);
+  const [dispPersona, setDispPersona] = useState('');
+  const [dispDia, setDispDia] = useState(new Date().getDay());
+  const [dispSemana, setDispSemana] = useState<Record<number, string[]> | null>(null);
+  const [dispLoading, setDispLoading] = useState(false);
+  const [dispSaving, setDispSaving] = useState(false);
+
+  const openDispModal = () => {
+    setDispPersona('');
+    setDispSemana(null);
+    setShowDispModal(true);
+  };
+
+  const loadDispPersona = (persona: string) => {
+    setDispPersona(persona);
+    setDispSemana(null);
+    if (!persona) return;
+    setDispLoading(true);
+    fetch(`/api/disponibilidad?propietario=${encodeURIComponent(persona)}`)
+      .then(r => r.json())
+      .then(d => {
+        const horario = d.horario ?? { horaInicio: '09:00', horaFin: '18:00', dias: [1, 2, 3, 4, 5], slots: null };
+        if (horario.slots) { setDispSemana(horario.slots); return; }
+        // Todavía no lo configuró: precarga el bloque por defecto para que
+        // solo tenga que destildar lo que no le sirva.
+        const inicio = horario.horaInicio, fin = horario.horaFin;
+        const inicioMin = Number(inicio.slice(0, 2)) * 60 + Number(inicio.slice(3, 5));
+        const finMin = Number(fin.slice(0, 2)) * 60 + Number(fin.slice(3, 5));
+        const preset: Record<number, string[]> = {};
+        for (const dia of [0, 1, 2, 3, 4, 5, 6]) {
+          preset[dia] = horario.dias.includes(dia)
+            ? HORAS_EDITABLES.filter(h => { const mins = Number(h.slice(0, 2)) * 60 + Number(h.slice(3, 5)); return mins >= inicioMin && mins < finMin; })
+            : [];
+        }
+        setDispSemana(preset);
+      })
+      .catch(() => showToast('No se pudo cargar la disponibilidad', false))
+      .finally(() => setDispLoading(false));
+  };
+
+  const toggleDispHora = (hora: string) => {
+    setDispSemana(prev => {
+      const actual = prev ?? {};
+      const dia = actual[dispDia] ?? [];
+      const nuevoDia = dia.includes(hora) ? dia.filter(h => h !== hora) : [...dia, hora].sort();
+      return { ...actual, [dispDia]: nuevoDia };
+    });
+  };
+
+  const marcarDispDia = (todas: boolean) => {
+    setDispSemana(prev => ({ ...(prev ?? {}), [dispDia]: todas ? [...HORAS_EDITABLES] : [] }));
+  };
+
+  const saveDisponibilidad = async () => {
+    if (!dispPersona || !dispSemana) return;
+    setDispSaving(true);
+    try {
+      const res = await fetch('/api/disponibilidad', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ propietario: dispPersona, slots: dispSemana }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast(`Disponibilidad de ${dispPersona} actualizada`);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar', false);
+    }
+    setDispSaving(false);
+  };
 
   useEffect(() => {
     fetch('/api/clientes').then(r => r.json()).then(d => setDbClients(d.clients ?? [])).catch(() => {});
@@ -1156,6 +1240,78 @@ export default function Staff({ onLogout }: StaffProps) {
           {/* ── CALENDARIO ── */}
           {tab === 'calendario' && (
             <div>
+              {/* Modal configurar disponibilidad */}
+              {showDispModal && (
+                <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => setShowDispModal(false)}>
+                  <div className="bg-white rounded-[22px] w-full max-w-[560px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5]">
+                      <div>
+                        <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Configurar disponibilidad</div>
+                        <div className="text-[13px] text-[#8A929E] font-semibold mt-0.5">Marca a mano las horas libres — solo esas van a aparecer al agendar</div>
+                      </div>
+                      <button onClick={() => setShowDispModal(false)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                    <div className="px-7 py-6 flex flex-col gap-4">
+                      <div>
+                        <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Persona</label>
+                        <Dropdown value={dispPersona} onChange={loadDispPersona}
+                          className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                          options={[{ value: '', label: 'Selecciona…' }, ...TODAS_DISPONIBILIDAD.map(p => ({ value: p, label: p }))]} />
+                      </div>
+                      {dispPersona && (
+                        dispLoading || !dispSemana ? (
+                          <div className="text-center py-6 text-[13px] text-[#8A929E] font-semibold">Cargando…</div>
+                        ) : (
+                          <>
+                            <div className="flex gap-1.5 flex-wrap">
+                              {DIAS_SEMANA.map(d => (
+                                <button key={d.valor} type="button" onClick={() => setDispDia(d.valor)}
+                                  className="px-3 py-2 rounded-[9px] text-[12.5px] font-bold border cursor-pointer transition"
+                                  style={{
+                                    background: dispDia === d.valor ? '#15171C' : '#F4F6F8',
+                                    color: dispDia === d.valor ? '#fff' : '#5A6270',
+                                    borderColor: dispDia === d.valor ? '#15171C' : '#E2E5EA',
+                                  }}>
+                                  {d.label}
+                                </button>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[12px] font-bold text-[#8A929E]">{(dispSemana[dispDia] ?? []).length} horas libres ese día</span>
+                              <div className="flex gap-2">
+                                <button onClick={() => marcarDispDia(true)} className="text-[11.5px] font-bold text-[#1F9B6E] bg-transparent border-none cursor-pointer hover:underline p-0">Marcar todo</button>
+                                <button onClick={() => marcarDispDia(false)} className="text-[11.5px] font-bold text-[#D14343] bg-transparent border-none cursor-pointer hover:underline p-0">Vaciar día</button>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 max-h-[220px] overflow-y-auto border-[1.5px] border-[#E2E5EA] rounded-[12px] p-3">
+                              {HORAS_EDITABLES.map(hora => {
+                                const libre = (dispSemana[dispDia] ?? []).includes(hora);
+                                return (
+                                  <button key={hora} type="button" onClick={() => toggleDispHora(hora)}
+                                    className={`px-2.5 py-1.5 rounded-[7px] text-[12px] font-bold border cursor-pointer ${
+                                      libre
+                                        ? 'bg-[#EAF7F1] text-[#1F9B6E] border-[#CFEBDF] hover:border-[#1F9B6E]'
+                                        : 'bg-[#F4F6F8] text-[#AEB4BE] border-[#E2E5EA] hover:border-[#C2C8D2]'
+                                    }`}>
+                                    {libre ? '🟢' : '⚪'} {hora}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button onClick={saveDisponibilidad} disabled={dispSaving}
+                              className="w-full h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                              {dispSaving ? 'Guardando…' : `Guardar disponibilidad de ${dispPersona}`}
+                            </button>
+                          </>
+                        )
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Modal nueva reunión */}
               {showReunionModal && (
                 <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!creatingReunion) setShowReunionModal(false); }}>
@@ -1350,6 +1506,10 @@ export default function Staff({ onLogout }: StaffProps) {
                     <span className="w-2 h-2 rounded-full bg-mint animate-pulseDot" />
                     Conectado
                   </span>
+                  <button onClick={openDispModal} className="flex items-center gap-2 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] font-bold text-[14px] px-5 py-[11px] rounded-[12px] cursor-pointer hover:bg-[#ECEEF2] transition flex-shrink-0">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
+                    Configurar disponibilidad
+                  </button>
                   <button onClick={openReunionModal} className="flex items-center gap-2 bg-[#15171C] text-white border-none font-bold text-[14px] px-5 py-[11px] rounded-[12px] cursor-pointer hover:bg-steel transition flex-shrink-0">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
                     Nueva reunión

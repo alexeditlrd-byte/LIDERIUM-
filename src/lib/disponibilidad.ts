@@ -15,17 +15,29 @@ const SLOT_STEP_MIN = 30;
 // ocupación de una persona en cualquiera de las dos columnas.
 export const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago', 'Winona', 'Maryori'];
 
+// slots: horario "a la carta" — cada persona marca a mano qué medias horas
+// tiene libres por día de semana ('0' = domingo ... '6' = sábado). Si es
+// null, todavía no lo configuró y se usa el bloque horaInicio–horaFin de
+// abajo como antes; en cuanto lo configura, manda por completo sobre ese
+// bloque (un día ausente del mapa = sin horas libres ese día).
 interface HorarioLaboral {
   horaInicio: string; // 'HH:MM'
   horaFin: string; // 'HH:MM'
   dias: number[]; // 0=domingo ... 6=sábado
+  slots: Record<string, string[]> | null;
 }
 
-const HORARIO_DEFAULT: HorarioLaboral = { horaInicio: '09:00', horaFin: '18:00', dias: [1, 2, 3, 4, 5] };
+const HORARIO_DEFAULT: HorarioLaboral = { horaInicio: '09:00', horaFin: '18:00', dias: [1, 2, 3, 4, 5], slots: null };
 
 function toMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(':').map(Number);
   return h * 60 + (m || 0);
+}
+
+function minutesToHHMM(mins: number): string {
+  const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+  const mm = String(mins % 60).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 function limaParts(iso: string) {
@@ -47,7 +59,12 @@ export function limaToISO(fechaYMD: string, horaHHMM: string): string {
 export async function getHorarioLaboral(propietario: string): Promise<HorarioLaboral> {
   const { data } = await supabaseAdmin.from('horarios_laborales').select('*').eq('propietario', propietario).single();
   if (!data) return HORARIO_DEFAULT;
-  return { horaInicio: data.hora_inicio, horaFin: data.hora_fin, dias: data.dias ?? HORARIO_DEFAULT.dias };
+  return {
+    horaInicio: data.hora_inicio,
+    horaFin: data.hora_fin,
+    dias: data.dias ?? HORARIO_DEFAULT.dias,
+    slots: data.slots ?? null,
+  };
 }
 
 interface BusyRange { start: number; end: number; }
@@ -81,18 +98,33 @@ export async function computeAvailability(
   const horario = await getHorarioLaboral(propietario);
   const [y, m, d] = fechaYMD.split('-').map(Number);
   const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  if (!horario.dias.includes(weekday)) return [];
+
+  // Minutos de inicio de cada media hora que la persona marcó como libre
+  // ese día — a mano (horario.slots) si ya lo configuró, o el bloque
+  // horaInicio–horaFin de siempre si todavía no lo hizo.
+  let freeStarts: Set<number>;
+  if (horario.slots) {
+    const configurados = horario.slots[String(weekday)] ?? [];
+    if (configurados.length === 0) return [];
+    freeStarts = new Set(configurados.map(toMinutes));
+  } else {
+    if (!horario.dias.includes(weekday)) return [];
+    freeStarts = new Set();
+    for (let t = toMinutes(horario.horaInicio); t < toMinutes(horario.horaFin); t += SLOT_STEP_MIN) freeStarts.add(t);
+  }
 
   const busy = await getBusyRanges(propietario, fechaYMD);
-  const inicio = toMinutes(horario.horaInicio);
-  const fin = toMinutes(horario.horaFin);
-
   const slots: SlotAvailability[] = [];
-  for (let t = inicio; t + durationMinutes <= fin; t += SLOT_STEP_MIN) {
+  for (const t of [...freeStarts].sort((a, b) => a - b)) {
+    // La reunión completa (no solo el primer bloque de 30 min) debe caer
+    // dentro de tramos que la persona marcó como libres.
+    let cabeEnLibre = true;
+    for (let x = t; x < t + durationMinutes; x += SLOT_STEP_MIN) {
+      if (!freeStarts.has(x)) { cabeEnLibre = false; break; }
+    }
+    if (!cabeEnLibre) continue;
     const isBusy = busy.some((r) => overlaps(t, t + durationMinutes, r.start, r.end));
-    const hh = String(Math.floor(t / 60)).padStart(2, '0');
-    const mm = String(t % 60).padStart(2, '0');
-    slots.push({ time: `${hh}:${mm}`, available: !isBusy });
+    slots.push({ time: minutesToHHMM(t), available: !isBusy });
   }
   return slots;
 }
