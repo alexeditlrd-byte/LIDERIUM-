@@ -1243,8 +1243,8 @@ export default function Staff({ onLogout }: StaffProps) {
               {/* Modal configurar disponibilidad */}
               {showDispModal && (
                 <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => setShowDispModal(false)}>
-                  <div className="bg-white rounded-[22px] w-full max-w-[560px] shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5]">
+                  <div className="bg-white rounded-[22px] w-full max-w-[560px] shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5] rounded-t-[22px]">
                       <div>
                         <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Configurar disponibilidad</div>
                         <div className="text-[13px] text-[#8A929E] font-semibold mt-0.5">Marca a mano las horas libres — solo esas van a aparecer al agendar</div>
@@ -1258,6 +1258,7 @@ export default function Staff({ onLogout }: StaffProps) {
                         <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Persona</label>
                         <Dropdown value={dispPersona} onChange={loadDispPersona}
                           className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                          listClassName="max-h-[220px]"
                           options={[{ value: '', label: 'Selecciona…' }, ...TODAS_DISPONIBILIDAD.map(p => ({ value: p, label: p }))]} />
                       </div>
                       {dispPersona && (
