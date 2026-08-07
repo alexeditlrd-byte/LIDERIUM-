@@ -19,10 +19,21 @@ async function getAccessToken(): Promise<string> {
 }
 
 export async function POST(req: NextRequest) {
-  const { token, meetingCode } = await req.json();
+  const { token, meetingCode, patch } = await req.json();
   if (token !== TOKEN) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
 
   const accessToken = await getAccessToken();
+
+  if (patch) {
+    const res = await fetch(`https://meet.googleapis.com/v2/spaces/${meetingCode}?updateMask=config.accessType`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: { accessType: 'OPEN' } }),
+    });
+    const data = await res.json();
+    return NextResponse.json({ status: res.status, data });
+  }
+
   const res = await fetch(`https://meet.googleapis.com/v2/spaces/${meetingCode}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
