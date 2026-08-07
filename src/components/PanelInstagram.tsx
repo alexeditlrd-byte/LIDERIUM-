@@ -431,7 +431,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                       <input value={newQuickReply} onChange={e => setNewQuickReply(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') addQuickReply(); }}
                         placeholder="Nueva respuesta rápida…"
-                        className="flex-1 h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none focus:border-steel transition" />
+                        className="flex-1 h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
                       <button onClick={addQuickReply} disabled={!newQuickReply.trim()}
                         className="h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
                         Agregar
