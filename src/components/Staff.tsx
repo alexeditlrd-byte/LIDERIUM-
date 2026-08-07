@@ -75,13 +75,14 @@ const titles: Record<StaffTab, string> = {
 const RESPONSABLE_EMAIL: Record<string, string> = {
   Winona: 'winonadavila@gmail.com',
   Maryori: 'maryori.drgj@gmail.com',
+  Santiago: 'santialonsonorpe@gmail.com',
 };
 
 // Personas con disponibilidad/agenda propia para reuniones. "Responsable"
-// (Winona/Maryori) y "Propietario" (Terry/Santiago) son campos separados en
-// el formulario, cada uno con su propia grilla de horarios y su propia
-// validación de choques — ambos reutilizan el mismo motor de disponibilidad.
-const RESPONSABLES_DISPONIBILIDAD = ['Winona', 'Maryori'];
+// y "Propietario" (Terry/Santiago) son campos separados en el formulario,
+// cada uno con su propia grilla de horarios y su propia validación de
+// choques — ambos reutilizan el mismo motor de disponibilidad.
+const RESPONSABLES_DISPONIBILIDAD = ['Winona', 'Maryori', 'Santiago'];
 const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago'];
 
 const meetings = [
