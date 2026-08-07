@@ -7,13 +7,14 @@ import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
 import PanelFinanzas from '@/components/PanelFinanzas';
 import PanelInstagram from '@/components/PanelInstagram';
+import PanelLeadsPrioritarios from '@/components/PanelLeadsPrioritarios';
 import Dropdown from '@/components/Dropdown';
 
 interface StaffProps {
   onLogout: () => void;
 }
 
-type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'instagram';
+type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'instagram' | 'sat';
 
 const ICONS: Record<string, React.ReactNode> = {
   comercial: (
@@ -52,10 +53,16 @@ const ICONS: Record<string, React.ReactNode> = {
       <rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><path d="M17.5 6.5h.01" />
     </svg>
   ),
+  sat: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
+      <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" />
+    </svg>
+  ),
 };
 
 const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'comercial', label: 'Comercial' },
+  { id: 'sat', label: 'SAT · Leads prioritarios' },
   { id: 'guia', label: 'Guía' },
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
@@ -70,6 +77,7 @@ const titles: Record<StaffTab, string> = {
   pagos: 'Pagos de clientes',
   calendario: 'Calendario de reuniones',
   instagram: 'Instagram de Santiago',
+  sat: 'SAT — Agente de priorización de leads',
 };
 
 const RESPONSABLE_EMAIL: Record<string, string> = {
@@ -705,6 +713,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
           {/* ── COMERCIAL ── */}
           {tab === 'comercial' && <PanelComercial showToast={showToast} />}
+
+          {/* ── SAT ── */}
+          {tab === 'sat' && <PanelLeadsPrioritarios showToast={showToast} />}
 
           {/* ── INSTAGRAM ── */}
           {tab === 'instagram' && <PanelInstagram showToast={showToast} />}
