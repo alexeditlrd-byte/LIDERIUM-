@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { createCalendarEvent } from '@/lib/google-calendar';
+import { hasConflict } from '@/lib/disponibilidad';
 
 export async function POST(req: NextRequest) {
   const { clientSlug, clientName, clientEmail, title, mentor, mentorRole, mentorEmail, scheduledAt, durationMinutes } = await req.json();
 
   if (!clientSlug || !title || !mentor || !mentorEmail || !scheduledAt) {
     return NextResponse.json({ error: 'Faltan campos' }, { status: 400 });
+  }
+
+  if (await hasConflict(mentor, scheduledAt, durationMinutes ?? 45)) {
+    return NextResponse.json({ error: `Este horario ya está ocupado para ${mentor}. Selecciona otro horario disponible.` }, { status: 409 });
   }
 
   // Crear evento en Google Calendar directo por API → Meet link automático

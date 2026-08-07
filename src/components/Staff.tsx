@@ -77,6 +77,11 @@ const RESPONSABLE_EMAIL: Record<string, string> = {
   Maryori: 'maryori.drgj@gmail.com',
 };
 
+// Personas con disponibilidad/agenda propia para reuniones — el mismo
+// campo "Responsable" del formulario se usa para calcular sus horarios
+// libres, sin crear ningún campo "Propietario" aparte.
+const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago', 'Winona', 'Maryori'];
+
 const meetings = [
   { day: 'Hoy · Mar 17', time: '10:00', client: 'Aurora Café', type: 'Revisión de contenido', who: 'Mateo', c: '#2E6CA0' },
   { day: 'Hoy · Mar 17', time: '15:30', client: 'Studio Norte', type: 'Estrategia mensual', who: 'Lucía', c: '#2FB389' },
@@ -213,6 +218,17 @@ export default function Staff({ onLogout }: StaffProps) {
   const [creatingReunion, setCreatingReunion] = useState(false);
   const [reunionCreated, setReunionCreated] = useState<{ meetLink: string } | null>(null);
   const [reunionErr, setReunionErr] = useState('');
+
+  const [availableSlots, setAvailableSlots] = useState<{ time: string; available: boolean }[] | null>(null);
+  useEffect(() => {
+    const { mentor, fecha, duracion } = reunionForm;
+    Promise.resolve().then(() => {
+      if (!mentor || !fecha || !PROPIETARIOS_DISPONIBILIDAD.includes(mentor)) { setAvailableSlots(null); return; }
+      return fetch(`/api/disponibilidad?propietario=${encodeURIComponent(mentor)}&fecha=${fecha}&duracion=${duracion}`)
+        .then(r => r.json())
+        .then(d => setAvailableSlots(d.slots ?? []));
+    }).catch(() => setAvailableSlots([]));
+  }, [reunionForm.mentor, reunionForm.fecha, reunionForm.duracion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch('/api/clientes').then(r => r.json()).then(d => setDbClients(d.clients ?? [])).catch(() => {});
@@ -1202,7 +1218,7 @@ export default function Staff({ onLogout }: StaffProps) {
                               setReunionForm(f => ({ ...f, mentor, mentorEmail: RESPONSABLE_EMAIL[mentor] ?? f.mentorEmail }));
                             }}
                               className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
-                              options={[{ value: '', label: 'Selecciona…' }, ...Object.keys(RESPONSABLE_EMAIL).map(r => ({ value: r, label: r }))]} />
+                              options={[{ value: '', label: 'Selecciona…' }, ...PROPIETARIOS_DISPONIBILIDAD.map(r => ({ value: r, label: r }))]} />
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plan</label>
@@ -1225,8 +1241,28 @@ export default function Staff({ onLogout }: StaffProps) {
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Hora</label>
-                            <input type="time" value={reunionForm.hora} onChange={e => setReunionForm(f => ({ ...f, hora: e.target.value }))}
-                              className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                            {!availableSlots ? (
+                              <input type="time" value={reunionForm.hora} onChange={e => setReunionForm(f => ({ ...f, hora: e.target.value }))}
+                                className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                            ) : availableSlots.length === 0 ? (
+                              <div className="w-full h-[46px] px-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[12.5px] font-semibold text-[#9AA0A8] flex items-center">Sin horario laboral ese día</div>
+                            ) : (
+                              <div className="w-full max-h-[46px] hover:max-h-[180px] overflow-y-auto border-[1.5px] border-[#E2E5EA] rounded-[12px] px-2 py-2 flex flex-wrap gap-1.5 transition-all">
+                                {availableSlots.map(s => (
+                                  <button key={s.time} type="button" disabled={!s.available}
+                                    onClick={() => setReunionForm(f => ({ ...f, hora: s.time }))}
+                                    className={`px-2 py-1 rounded-[7px] text-[12px] font-bold border ${
+                                      reunionForm.hora === s.time
+                                        ? 'bg-[#15171C] text-white border-[#15171C]'
+                                        : s.available
+                                          ? 'bg-[#EAF7F1] text-[#1F9B6E] border-[#CFEBDF] cursor-pointer hover:border-[#1F9B6E]'
+                                          : 'bg-[#F4F6F8] text-[#C2C8D2] border-[#E2E5EA] cursor-not-allowed line-through'
+                                    }`}>
+                                    {s.available ? '🟢' : '🔴'} {s.time}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Duración</label>

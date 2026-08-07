@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { updateCalendarEvent, deleteCalendarEvent } from '@/lib/google-calendar';
+import { hasConflict } from '@/lib/disponibilidad';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -22,7 +23,11 @@ export async function PATCH(req: NextRequest) {
   const { id, scheduledAt, durationMinutes } = await req.json();
   if (!id || !scheduledAt) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 });
 
-  const { data: existing } = await supabaseAdmin.from('meetings').select('event_id').eq('id', id).single();
+  const { data: existing } = await supabaseAdmin.from('meetings').select('event_id, mentor').eq('id', id).single();
+
+  if (existing?.mentor && await hasConflict(existing.mentor, scheduledAt, durationMinutes ?? 45, id)) {
+    return NextResponse.json({ error: `Este horario ya está ocupado para ${existing.mentor}. Selecciona otro horario disponible.` }, { status: 409 });
+  }
 
   if (existing?.event_id) {
     try {
