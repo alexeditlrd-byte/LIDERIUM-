@@ -190,6 +190,28 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
     setUploadingRecurso(false);
   };
 
+  const [removingRecurso, setRemovingRecurso] = useState(false);
+
+  const removeRecurso = async () => {
+    setRemovingRecurso(true);
+    try {
+      const body = { tipo: recursoDraft.tipo, titulo: recursoDraft.titulo.trim() || 'Tu recurso gratuito', url: '' };
+      const res = await fetch('/api/recurso-gratuito', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setRecursoDraft(d => ({ ...d, url: '' }));
+      setRecursoFileName('');
+      showToast('Recurso gratuito desactivado — el formulario ya no entrega nada al enviarse');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo quitar el recurso', false);
+    }
+    setRemovingRecurso(false);
+  };
+
   const saveRecurso = async () => {
     if (!recursoDraft.titulo.trim()) { showToast('Ponle un título al recurso', false); return; }
     if (!recursoDraft.url.trim()) { showToast('Falta el archivo o el enlace del recurso', false); return; }
@@ -716,6 +738,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 </div>
               )}
             </div>
+            {recursoDraft.url && (
+              <div className="px-7 pb-4">
+                <button onClick={removeRecurso} disabled={removingRecurso}
+                  className="text-[12.5px] font-bold text-[#D14343] bg-transparent border-none cursor-pointer hover:underline p-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {removingRecurso ? 'Quitando…' : 'Quitar recurso gratuito (no entregar nada)'}
+                </button>
+              </div>
+            )}
             <div className="flex gap-3 px-7 pb-7">
               <button onClick={() => setShowRecursoModal(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
               <button onClick={saveRecurso} disabled={savingRecurso || uploadingRecurso}
