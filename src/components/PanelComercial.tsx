@@ -96,6 +96,12 @@ function leadInMonth(lead: Lead, ym: string) {
   const [, m, y] = parts;
   return `${y.padStart(4, '0')}-${m.padStart(2, '0')}` === ym;
 }
+// Un lead "vino del formulario web" (/registro) si tiene correo o
+// respuestas de cuestionario guardadas — nada de eso existe en un lead
+// creado a mano desde "Añadir lead".
+function esLeadWeb(lead: Lead) {
+  return !!(lead.email || (lead.cuestionario && Object.keys(lead.cuestionario).length > 0));
+}
 function waLink(numero: string) {
   return 'https://wa.me/' + (numero || '').replace(/[^0-9]/g, '');
 }
@@ -601,7 +607,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                       <div className="flex items-center gap-[10px] min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
                         <div className="min-w-0">
-                          <div className="text-[13.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="text-[13.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                            {esLeadWeb(lead) && (
+                              <span title="Vino del formulario web (/registro)" className="flex-shrink-0 text-[9.5px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] px-[6px] py-[1px] rounded-full uppercase tracking-[0.03em]">Web</span>
+                            )}
+                          </div>
                           <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{lead.instagram}</div>
                         </div>
                       </div>
@@ -667,7 +678,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                     onClick={() => setSelectedId(lead.id)}
                     className={`bg-[#FAFBFC] border border-[#F0F2F5] rounded-[12px] p-3 cursor-grab active:cursor-grabbing hover:border-steel transition ${draggedLeadId === lead.id ? 'opacity-40' : ''}`}>
                     <div className="flex justify-between items-start gap-2">
-                      <div className="text-[13px] font-bold text-[#15171C]">{lead.nombre}</div>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="text-[13px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                        {esLeadWeb(lead) && (
+                          <span title="Vino del formulario web (/registro)" className="flex-shrink-0 text-[9px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] px-[5px] py-[1px] rounded-full uppercase tracking-[0.03em]">Web</span>
+                        )}
+                      </div>
                       <span className="w-[7px] h-[7px] rounded-full flex-shrink-0 mt-1" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
                     </div>
                     <div className="text-[11px] text-[#8A929E] font-semibold mt-0.5">{lead.nicho}</div>
@@ -884,7 +900,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                   }}
                   className="w-full font-grotesk font-bold text-[19px] text-[#15171C] bg-transparent border-none outline-none p-0 focus:underline"
                 />
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {esLeadWeb(selectedLead) && (
+                    <span title="Vino del formulario web (/registro)" className="text-[10.5px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] rounded-[7px] px-2.5 py-1 uppercase tracking-[0.03em]">Web</span>
+                  )}
                   <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.instagram || '—'}</span>
                   <span className="text-[12px] text-[#8A929E] font-semibold bg-[#F4F6F8] rounded-[7px] px-2.5 py-1">{selectedLead.numero}</span>
                 </div>
