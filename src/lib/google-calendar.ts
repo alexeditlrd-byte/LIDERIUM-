@@ -39,6 +39,29 @@ interface CreateEventInput {
   description?: string;
 }
 
+// Por defecto, Google Meet solo deja entrar sin tocar la puerta a la
+// cuenta que organiza la reunión y a los invitados exactos del evento.
+// Como el cliente nunca queda como invitado (no le pedimos su correo),
+// abrimos el espacio de Meet para que cualquiera con el link entre
+// directo, usando la API de Meet (permiso aparte al de Calendar).
+async function openMeetSpace(meetLink: string, accessToken: string): Promise<void> {
+  const meetingCode = meetLink.split('/').pop();
+  if (!meetingCode) return;
+  try {
+    const res = await fetch(`https://meet.googleapis.com/v2/spaces/${meetingCode}?updateMask=config.accessType`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: { accessType: 'OPEN' } }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      console.error('[google-calendar] no se pudo abrir el acceso del Meet:', data.error?.message || res.status);
+    }
+  } catch (e) {
+    console.error('[google-calendar] fetch a la API de Meet falló:', e instanceof Error ? e.message : String(e));
+  }
+}
+
 export async function createCalendarEvent(input: CreateEventInput): Promise<{ eventId: string; meetLink: string }> {
   const accessToken = await getAccessToken();
   const start = new Date(input.startTime);
@@ -66,7 +89,11 @@ export async function createCalendarEvent(input: CreateEventInput): Promise<{ ev
   );
   const data = await res.json();
   if (!res.ok) throw new Error(data.error?.message || 'No se pudo crear el evento en Google Calendar');
-  return { eventId: data.id as string, meetLink: (data.hangoutLink as string) ?? '' };
+  const meetLink = (data.hangoutLink as string) ?? '';
+
+  if (meetLink) await openMeetSpace(meetLink, accessToken);
+
+  return { eventId: data.id as string, meetLink };
 }
 
 interface UpdateEventInput {
