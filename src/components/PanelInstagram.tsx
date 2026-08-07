@@ -25,6 +25,15 @@ interface QuickReply {
   texto: string;
 }
 
+const EMOJIS = [
+  '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
+  '😎', '🤩', '🥳', '😇', '🤗', '🤔', '😅', '😢', '😭', '😮',
+  '😱', '😴', '🙄', '😬', '🤝', '👍', '👎', '👏', '🙏', '💪',
+  '👋', '✌️', '🤞', '👌', '❤️', '🧡', '💛', '💚', '💙', '💜',
+  '🔥', '✨', '🎉', '🎊', '💯', '⭐', '✅', '❌', '⏰', '📅',
+  '📌', '📎', '📷', '🎥', '💰', '💵', '📈', '🚀', '💡', '🙌',
+];
+
 function timeAgo(iso: string) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -58,6 +67,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
 
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
 
   useEffect(() => {
@@ -439,6 +449,18 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     </div>
                   </div>
                 )}
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-6 mb-2 w-[280px] bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
+                    <div className="grid grid-cols-8 gap-1">
+                      {EMOJIS.map(emoji => (
+                        <button key={emoji} type="button" onClick={() => setReply(r => r + emoji)}
+                          className="w-8 h-8 flex items-center justify-center text-[18px] bg-transparent border-none rounded-[7px] cursor-pointer hover:bg-[#F4F6F8]">
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-[10px]">
                   <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden"
                     onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
@@ -449,6 +471,11 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     ) : (
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
                     )}
+                  </button>
+                  <button onClick={() => setShowEmojiPicker(s => !s)} title="Emojis"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer text-[18px] transition"
+                    style={{ background: showEmojiPicker ? '#EAF1F8' : '#F4F6F8' }}>
+                    😊
                   </button>
                   <button onClick={() => setShowQuickReplies(s => !s)} title="Respuestas rápidas"
                     className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition"
