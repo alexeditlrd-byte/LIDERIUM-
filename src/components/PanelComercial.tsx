@@ -15,12 +15,13 @@ type Filter = 'all' | 'alta' | 'nuevo';
 const RESPONSABLES = ['Winona', 'Maryori'];
 const PROPIETARIOS = ['Terry', 'Santiago'];
 
-const ESTADOS: Lead['estado'][] = ['Nuevo', 'Contactado', 'Ganado', 'Perdido'];
+const ESTADOS: Lead['estado'][] = ['Nuevo', 'No calificado', 'Contactado', 'Ganado', 'Perdido'];
 const PRIORIDADES: Lead['prioridad'][] = ['Alta', 'Media', 'Baja'];
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 const ESTADO_STYLE: Record<Lead['estado'], { bg: string; color: string }> = {
   Nuevo: { bg: '#EAF7F1', color: '#1F9B6E' },
+  'No calificado': { bg: '#F1F2F5', color: '#6B7280' },
   Contactado: { bg: '#EAF1F8', color: '#2E6CA0' },
   Ganado: { bg: '#FBF1E2', color: '#B5740F' },
   Perdido: { bg: '#FCEDED', color: '#D14343' },
@@ -638,7 +639,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 items-start">
           {columns.map(col => (
             <div key={col.estado}
               onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverEstado !== col.estado) setDragOverEstado(col.estado); }}

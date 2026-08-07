@@ -29,7 +29,7 @@ export interface Lead {
   fechaRenovacion: string; // dd/mm/yyyy
   precio: number;
   abono: number;
-  estado: 'Nuevo' | 'Contactado' | 'Ganado' | 'Perdido';
+  estado: 'Nuevo' | 'No calificado' | 'Contactado' | 'Ganado' | 'Perdido';
   prioridad: 'Alta' | 'Media' | 'Baja';
   observacion: string;
 }
