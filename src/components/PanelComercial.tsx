@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Lead, LeadInput } from '@/lib/leads-sheet';
 import Dropdown from '@/components/Dropdown';
+import { supabase } from '@/lib/supabase';
 
 interface PanelComercialProps {
   showToast: (text: string, ok?: boolean) => void;
@@ -39,6 +40,7 @@ function emptyDraft(): LeadInput {
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
   return {
     nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '', linkAds: '',
+    email: '', cuestionario: null,
     nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '', propietario: '',
     fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
   };
@@ -149,6 +151,64 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   useEffect(() => {
     fetch('/api/reuniones').then(r => r.json()).then(d => setReuniones(d.meetings ?? [])).catch(() => {});
   }, []);
+
+  // Recurso gratuito (PDF, link de Drive, video o enlace propio) que se
+  // entrega automáticamente al terminar el formulario público /registro.
+  const [showRecursoModal, setShowRecursoModal] = useState(false);
+  const [recursoDraft, setRecursoDraft] = useState({ tipo: 'link', titulo: '', url: '' });
+  const [recursoFileName, setRecursoFileName] = useState('');
+  const [savingRecurso, setSavingRecurso] = useState(false);
+  const [uploadingRecurso, setUploadingRecurso] = useState(false);
+
+  const loadRecurso = () => {
+    fetch('/api/recurso-gratuito').then(r => r.json()).then(d => {
+      if (d.recurso) setRecursoDraft({ tipo: d.recurso.tipo, titulo: d.recurso.titulo, url: d.recurso.url });
+    }).catch(() => {});
+  };
+  useEffect(() => { loadRecurso(); }, []);
+
+  const openRecursoModal = () => { loadRecurso(); setRecursoFileName(''); setShowRecursoModal(true); };
+
+  const uploadRecursoPDF = async (file: File | null) => {
+    if (!file) return;
+    setUploadingRecurso(true);
+    try {
+      const urlRes = await fetch('/api/recurso-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+      const { error: uploadError } = await supabase.storage.from('recursos').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+      if (uploadError) throw uploadError;
+      setRecursoDraft(d => ({ ...d, url: urlData.publicUrl }));
+      setRecursoFileName(file.name);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo subir el PDF', false);
+    }
+    setUploadingRecurso(false);
+  };
+
+  const saveRecurso = async () => {
+    if (!recursoDraft.titulo.trim()) { showToast('Ponle un título al recurso', false); return; }
+    if (!recursoDraft.url.trim()) { showToast('Falta el archivo o el enlace del recurso', false); return; }
+    setSavingRecurso(true);
+    try {
+      const res = await fetch('/api/recurso-gratuito', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recursoDraft),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('Recurso gratuito actualizado');
+      setShowRecursoModal(false);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar', false);
+    }
+    setSavingRecurso(false);
+  };
 
   const comercialStats = useMemo(() => {
     const leadIdsConReunion = new Set(reuniones.map(m => m.client_slug));
@@ -479,8 +539,11 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
             {c.label}
           </button>
         ))}
+        <button onClick={openRecursoModal} className="ml-auto flex items-center gap-2 bg-white text-[#15171C] border border-[#E2E5EA] font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:border-steel transition">
+          🎁 Recurso gratuito
+        </button>
         <button onClick={openAddForm} disabled={!configured}
-          className="ml-auto flex items-center gap-2 bg-[#15171C] text-white border-none font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
+          className="flex items-center gap-2 bg-[#15171C] text-white border-none font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
           Nuevo lead
         </button>
@@ -601,6 +664,66 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Recurso gratuito modal */}
+      {showRecursoModal && (
+        <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!savingRecurso) setShowRecursoModal(false); }}>
+          <div className="bg-white rounded-[22px] w-full max-w-[500px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5]">
+              <div>
+                <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Recurso gratuito</div>
+                <div className="text-[13px] text-[#8A929E] font-semibold mt-0.5">Se entrega automático al terminar el formulario público de registro</div>
+              </div>
+              <button onClick={() => setShowRecursoModal(false)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-7 py-6 flex flex-col gap-4">
+              <div>
+                <label className={labelClass}>Tipo de recurso</label>
+                <Dropdown className={inputClass} value={recursoDraft.tipo}
+                  onChange={tipo => setRecursoDraft(d => ({ ...d, tipo, url: tipo === 'pdf' ? d.url : d.url }))}
+                  options={[
+                    { value: 'pdf', label: 'Archivo PDF' },
+                    { value: 'drive', label: 'Enlace de Google Drive' },
+                    { value: 'video', label: 'Enlace de video' },
+                    { value: 'link', label: 'Enlace personalizado' },
+                  ]} />
+              </div>
+              <div>
+                <label className={labelClass}>Título (lo ve el lead)</label>
+                <input className={inputClass} value={recursoDraft.titulo} onChange={e => setRecursoDraft(d => ({ ...d, titulo: e.target.value }))}
+                  placeholder="Ej. Descarga tu guía gratuita" />
+              </div>
+              {recursoDraft.tipo === 'pdf' ? (
+                <div>
+                  <label className={labelClass}>Archivo PDF</label>
+                  <input type="file" accept="application/pdf" disabled={uploadingRecurso}
+                    onChange={e => uploadRecursoPDF(e.target.files?.[0] ?? null)}
+                    className="w-full text-[13px] font-medium text-[#5A6270]" />
+                  {uploadingRecurso && <div className="text-[12px] text-[#8A929E] font-semibold mt-1.5">Subiendo…</div>}
+                  {!uploadingRecurso && recursoDraft.url && (
+                    <div className="text-[12px] text-[#1F9B6E] font-semibold mt-1.5 truncate">✓ {recursoFileName || 'Archivo cargado'}</div>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className={labelClass}>Enlace</label>
+                  <input className={inputClass} value={recursoDraft.url} onChange={e => setRecursoDraft(d => ({ ...d, url: e.target.value }))}
+                    placeholder="https://..." />
+                </div>
+              )}
+            </div>
+            <div className="flex gap-3 px-7 pb-7">
+              <button onClick={() => setShowRecursoModal(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
+              <button onClick={saveRecurso} disabled={savingRecurso || uploadingRecurso}
+                className="flex-1 h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                {savingRecurso ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -910,6 +1033,26 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               <textarea defaultValue={selectedLead.observacion} onBlur={e => e.target.value !== selectedLead.observacion && patchLead(selectedLead.id, { observacion: e.target.value })}
                 className="w-full min-h-[80px] bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 text-[13px] text-[#3C434F] leading-[1.5] outline-none resize-y" />
             </div>
+
+            {(selectedLead.email || (selectedLead.cuestionario && Object.keys(selectedLead.cuestionario).length > 0)) && (
+              <div className="mt-5">
+                <label className={labelClass}>Datos del cuestionario</label>
+                <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[12px] p-3 flex flex-col gap-2.5 mt-1.5">
+                  {selectedLead.email && (
+                    <div className="flex justify-between gap-3 text-[12.5px]">
+                      <span className="text-[#8A929E] font-semibold flex-shrink-0">Correo</span>
+                      <span className="font-bold text-[#15171C] text-right break-all">{selectedLead.email}</span>
+                    </div>
+                  )}
+                  {selectedLead.cuestionario && Object.entries(selectedLead.cuestionario).map(([pregunta, respuesta]) => (
+                    <div key={pregunta} className="flex justify-between gap-3 text-[12.5px]">
+                      <span className="text-[#8A929E] font-semibold flex-shrink-0">{pregunta}</span>
+                      <span className="font-bold text-[#15171C] text-right">{respuesta}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

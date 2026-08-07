@@ -15,6 +15,10 @@ export interface Lead {
   nicho: string;
   plataformas: string;
   linkAds: string;
+  email: string;
+  // Respuestas del formulario público de captación que no tienen columna
+  // propia (ej. facturación mensual) — { pregunta: respuesta }.
+  cuestionario: Record<string, string> | null;
   nps: string;
   plan: string;
   faseVenta: string;
@@ -46,6 +50,8 @@ interface LeadRow {
   nicho: string;
   plataformas: string;
   link_ads: string;
+  email: string;
+  cuestionario: Record<string, string> | null;
   nps: string;
   plan: string;
   fase_venta: string;
@@ -69,6 +75,8 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
   nicho: 'nicho',
   plataformas: 'plataformas',
   linkAds: 'link_ads',
+  email: 'email',
+  cuestionario: 'cuestionario',
   nps: 'nps',
   plan: 'plan',
   faseVenta: 'fase_venta',
@@ -95,6 +103,8 @@ function rowToLead(row: LeadRow): Lead {
     nicho: row.nicho,
     plataformas: row.plataformas,
     linkAds: row.link_ads,
+    email: row.email,
+    cuestionario: row.cuestionario ?? null,
     nps: row.nps,
     plan: row.plan,
     faseVenta: row.fase_venta,
