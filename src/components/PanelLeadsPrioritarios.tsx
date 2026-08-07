@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Lead } from '@/lib/leads-sheet';
 import {
   computeLeadScore, esLeadCuestionario, tierEfectivo,
@@ -53,6 +53,26 @@ export default function PanelLeadsPrioritarios({ showToast }: PanelLeadsPriorita
   const [showPerfilModal, setShowPerfilModal] = useState(false);
   const [perfilDraft, setPerfilDraft] = useState({ icp: '', mapaEmpatia: '', calientes: '', medios: '' });
   const [savingPerfil, setSavingPerfil] = useState(false);
+  const [subiendoDoc, setSubiendoDoc] = useState<'icp' | 'mapaEmpatia' | null>(null);
+  const icpFileRef = useRef<HTMLInputElement>(null);
+  const mapaFileRef = useRef<HTMLInputElement>(null);
+
+  const subirDocumento = async (campo: 'icp' | 'mapaEmpatia', file: File | null) => {
+    if (!file) return;
+    setSubiendoDoc(campo);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/sat-perfil/extraer-texto', { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setPerfilDraft(d => ({ ...d, [campo]: d[campo] ? `${d[campo]}\n\n${data.texto}` : data.texto }));
+      showToast('Documento leído — revisa el texto antes de guardar');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo leer el documento', false);
+    }
+    setSubiendoDoc(null);
+  };
 
   const loadAll = () => {
     Promise.all([
@@ -324,13 +344,27 @@ export default function PanelLeadsPrioritarios({ showToast }: PanelLeadsPriorita
                 El ICP y el mapa de empatía se muestran como referencia para el equipo. Lo que SAT usa para calcular el score son las listas de nichos de abajo — son las que sí puede comparar de forma confiable.
               </div>
               <div>
-                <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">ICP — perfil de cliente ideal</label>
+                <div className="flex items-center justify-between mb-[7px]">
+                  <label className="block text-[13px] font-bold text-[#5A6270]">ICP — perfil de cliente ideal</label>
+                  <input ref={icpFileRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={e => subirDocumento('icp', e.target.files?.[0] ?? null)} />
+                  <button type="button" onClick={() => icpFileRef.current?.click()} disabled={subiendoDoc === 'icp'}
+                    className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {subiendoDoc === 'icp' ? 'Leyendo…' : '📄 Subir documento'}
+                  </button>
+                </div>
                 <textarea value={perfilDraft.icp} onChange={e => setPerfilDraft(d => ({ ...d, icp: e.target.value }))}
                   placeholder="Ej: Emprendedores con marca personal, facturando +$3,000/mes, que ya venden pero no tienen sistema de contenido..."
                   className="w-full min-h-[80px] px-4 py-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-y" />
               </div>
               <div>
-                <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Mapa de empatía — dolores y necesidades</label>
+                <div className="flex items-center justify-between mb-[7px]">
+                  <label className="block text-[13px] font-bold text-[#5A6270]">Mapa de empatía — dolores y necesidades</label>
+                  <input ref={mapaFileRef} type="file" accept=".pdf,.docx,.txt" className="hidden" onChange={e => subirDocumento('mapaEmpatia', e.target.files?.[0] ?? null)} />
+                  <button type="button" onClick={() => mapaFileRef.current?.click()} disabled={subiendoDoc === 'mapaEmpatia'}
+                    className="text-[11.5px] font-bold text-steel bg-transparent border-none cursor-pointer hover:underline p-0 disabled:opacity-50 disabled:cursor-not-allowed">
+                    {subiendoDoc === 'mapaEmpatia' ? 'Leyendo…' : '📄 Subir documento'}
+                  </button>
+                </div>
                 <textarea value={perfilDraft.mapaEmpatia} onChange={e => setPerfilDraft(d => ({ ...d, mapaEmpatia: e.target.value }))}
                   placeholder="Ej: Les cuesta mantener consistencia publicando, no saben qué contenido convierte, sienten que están perdiendo oportunidades frente a la competencia..."
                   className="w-full min-h-[80px] px-4 py-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-y" />
