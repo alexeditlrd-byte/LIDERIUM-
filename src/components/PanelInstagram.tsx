@@ -15,7 +15,14 @@ interface Message {
   fromId: string;
   text: string;
   shareLink: string | null;
+  attachmentUrl: string | null;
+  attachmentType: 'image' | 'video' | null;
   createdTime: string;
+}
+
+interface QuickReply {
+  id: string;
+  texto: string;
 }
 
 function timeAgo(iso: string) {
@@ -45,6 +52,35 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [sending, setSending] = useState(false);
   const messagesCache = useRef<Record<string, Message[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const localIdCounter = useRef(0);
+
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [newQuickReply, setNewQuickReply] = useState('');
+
+  useEffect(() => {
+    fetch('/api/instagram/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
+  }, []);
+
+  const addQuickReply = async () => {
+    if (!newQuickReply.trim()) return;
+    const res = await fetch('/api/instagram/quick-replies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: newQuickReply.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error ?? 'No se pudo guardar', false); return; }
+    setQuickReplies(q => [...q, data.reply]);
+    setNewQuickReply('');
+  };
+
+  const deleteQuickReply = async (id: string) => {
+    setQuickReplies(q => q.filter(r => r.id !== id));
+    await fetch(`/api/instagram/quick-replies?id=${id}`, { method: 'DELETE' }).catch(() => {});
+  };
 
   // "No leído" se calcula siempre de la misma forma, en el momento de
   // pintar la lista: la conversación se actualizó después de la última
@@ -160,6 +196,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
               fromId: conv.participantId,
               text: row.text_preview,
               shareLink: null,
+              attachmentUrl: null,
+              attachmentType: null,
               createdTime: row.created_at || new Date().toISOString(),
             };
             const updated = [...(messagesCache.current[conv.id] || []), optimistic];
@@ -205,28 +243,76 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
   const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
 
-  const submitReply = async () => {
-    if (!selected || !reply.trim()) return;
+  const pushLocalMessage = (partial: Partial<Message>) => {
+    if (!selected) return;
+    const newMsg: Message = {
+      id: `local-${localIdCounter.current++}`,
+      fromId: 'me',
+      text: '',
+      shareLink: null,
+      attachmentUrl: null,
+      attachmentType: null,
+      createdTime: new Date().toISOString(),
+      ...partial,
+    };
+    setMessages(m => {
+      const updated = [...m, newMsg];
+      messagesCache.current[selected.id] = updated;
+      return updated;
+    });
+  };
+
+  const submitReply = async (textOverride?: string) => {
+    const text = textOverride ?? reply;
+    if (!selected || !text.trim()) return;
     setSending(true);
     try {
       const res = await fetch('/api/instagram/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId: selected.participantId, text: reply }),
+        body: JSON.stringify({ recipientId: selected.participantId, text }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const newMsg = { id: `local-${Date.now()}`, fromId: 'me', text: reply, shareLink: null, createdTime: new Date().toISOString() };
-      setMessages(m => {
-        const updated = [...m, newMsg];
-        messagesCache.current[selected.id] = updated;
-        return updated;
-      });
-      setReply('');
+      pushLocalMessage({ text });
+      if (!textOverride) setReply('');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo enviar', false);
     }
     setSending(false);
+  };
+
+  const handleFileSelect = async (file: File | null) => {
+    if (!file || !selected) return;
+    setUploadingFile(true);
+    try {
+      const urlRes = await fetch('/api/instagram/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+
+      const { error: uploadError } = await supabase.storage
+        .from('ig-media')
+        .uploadToSignedUrl(urlData.filePath, urlData.token, file);
+      if (uploadError) throw uploadError;
+
+      const attachmentType: 'image' | 'video' = file.type.startsWith('video') ? 'video' : 'image';
+      const res = await fetch('/api/instagram/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: selected.participantId, attachmentUrl: urlData.publicUrl, attachmentType }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      pushLocalMessage({ attachmentUrl: urlData.publicUrl, attachmentType });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo enviar el archivo', false);
+    }
+    setUploadingFile(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   return (
@@ -290,13 +376,21 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     const isMe = m.fromId === selected.participantId ? false : true;
                     return (
                       <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div className="max-w-[70%] px-4 py-2.5 whitespace-pre-wrap text-[13.5px] leading-[1.5] rounded-[14px]"
+                        <div className={`max-w-[70%] ${m.attachmentUrl ? 'p-1.5' : 'px-4 py-2.5'} whitespace-pre-wrap text-[13.5px] leading-[1.5] rounded-[14px]`}
                           style={{
                             background: isMe ? '#15171C' : '#fff',
                             color: isMe ? '#fff' : '#15171C',
                             border: isMe ? 'none' : '1px solid #ECEEF2',
                           }}>
-                          {m.text ? m.text : m.shareLink ? (
+                          {m.attachmentUrl ? (
+                            m.attachmentType === 'video' ? (
+                              <video src={m.attachmentUrl} controls className="rounded-[10px] max-w-full max-h-[260px]" />
+                            ) : (
+                              <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer">
+                                <img src={m.attachmentUrl} alt="Adjunto" className="rounded-[10px] max-w-full max-h-[260px] block" />
+                              </a>
+                            )
+                          ) : m.text ? m.text : m.shareLink ? (
                             <a href={m.shareLink} target="_blank" rel="noopener noreferrer"
                               className="underline font-semibold" style={{ color: isMe ? '#9fc3e3' : '#2E6CA0' }}>
                               🔗 Ver reel / publicación compartida
@@ -311,18 +405,68 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="flex gap-[10px] px-6 py-4 border-t border-[#F0F2F5]">
-                <input
-                  value={reply}
-                  onChange={e => setReply(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') submitReply(); }}
-                  placeholder="Escribe una respuesta…"
-                  className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
-                />
-                <button onClick={submitReply} disabled={sending || !reply.trim()}
-                  className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
-                  {sending ? 'Enviando…' : 'Enviar'}
-                </button>
+              <div className="relative px-6 py-4 border-t border-[#F0F2F5]">
+                {showQuickReplies && (
+                  <div className="absolute bottom-full left-6 mb-2 w-[320px] max-h-[280px] overflow-y-auto bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
+                    <div className="text-[12px] font-bold text-[#5A6270] mb-2">Respuestas rápidas</div>
+                    {quickReplies.length === 0 && (
+                      <div className="text-[12.5px] text-[#9AA0A8] font-semibold mb-2">Todavía no agregas ninguna.</div>
+                    )}
+                    <div className="flex flex-col gap-1.5 mb-3">
+                      {quickReplies.map(qr => (
+                        <div key={qr.id} className="flex items-center gap-1.5 group">
+                          <button
+                            onClick={() => { submitReply(qr.texto); setShowQuickReplies(false); }}
+                            className="flex-1 text-left px-3 py-2 bg-[#F4F6F8] hover:bg-[#EAF1F8] rounded-[9px] text-[12.5px] font-medium text-[#15171C] border-none cursor-pointer truncate">
+                            {qr.texto}
+                          </button>
+                          <button onClick={() => deleteQuickReply(qr.id)} title="Eliminar"
+                            className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-transparent border-none text-[#C2C8D2] hover:text-[#D14343] hover:bg-[#FBEAEA] cursor-pointer text-[13px] font-bold">
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5 border-t border-[#F0F2F5] pt-2.5">
+                      <input value={newQuickReply} onChange={e => setNewQuickReply(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addQuickReply(); }}
+                        placeholder="Nueva respuesta rápida…"
+                        className="flex-1 h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none focus:border-steel transition" />
+                      <button onClick={addQuickReply} disabled={!newQuickReply.trim()}
+                        className="h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div className="flex gap-[10px]">
+                  <input ref={fileInputRef} type="file" accept="image/*,video/*" className="hidden"
+                    onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} title="Enviar foto o video"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-[#F4F6F8] hover:bg-[#ECEEF2] border-none rounded-[12px] cursor-pointer text-[#5A6270] disabled:opacity-50 disabled:cursor-not-allowed">
+                    {uploadingFile ? (
+                      <svg className="animate-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                    )}
+                  </button>
+                  <button onClick={() => setShowQuickReplies(s => !s)} title="Respuestas rápidas"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition"
+                    style={{ background: showQuickReplies ? '#EAF1F8' : '#F4F6F8', color: showQuickReplies ? '#2E6CA0' : '#5A6270' }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                  </button>
+                  <input
+                    value={reply}
+                    onChange={e => setReply(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') submitReply(); }}
+                    placeholder="Escribe una respuesta…"
+                    className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
+                  />
+                  <button onClick={() => submitReply()} disabled={sending || !reply.trim()}
+                    className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    {sending ? 'Enviando…' : 'Enviar'}
+                  </button>
+                </div>
               </div>
             </>
           )}
