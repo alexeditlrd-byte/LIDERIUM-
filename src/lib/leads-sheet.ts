@@ -32,6 +32,13 @@ export interface Lead {
   estado: 'Nuevo' | 'No calificado' | 'Contactado' | 'Ganado' | 'Perdido';
   prioridad: 'Alta' | 'Media' | 'Baja';
   observacion: string;
+  // Si el equipo arrastra el lead a otra columna en el panel SAT, esto
+  // manda sobre el tier que calcula el algoritmo ('' = sin ajustar).
+  satTierOverride: string;
+  // Nota libre que queda de feedback (ej. al ganar un cliente) para que
+  // el equipo entienda después por qué se cerró — insumo para ir
+  // afinando los criterios de SAT con resultados reales.
+  satFeedback: string;
 }
 
 export type LeadInput = Omit<Lead, 'id' | 'createdAt'>;
@@ -65,6 +72,8 @@ interface LeadRow {
   estado: string;
   prioridad: string;
   observacion: string;
+  sat_tier_override: string;
+  sat_feedback: string;
 }
 
 const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
@@ -90,6 +99,8 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
   estado: 'estado',
   prioridad: 'prioridad',
   observacion: 'observacion',
+  satTierOverride: 'sat_tier_override',
+  satFeedback: 'sat_feedback',
 };
 
 function rowToLead(row: LeadRow): Lead {
@@ -118,6 +129,8 @@ function rowToLead(row: LeadRow): Lead {
     estado: row.estado as Lead['estado'],
     prioridad: row.prioridad as Lead['prioridad'],
     observacion: row.observacion,
+    satTierOverride: row.sat_tier_override ?? '',
+    satFeedback: row.sat_feedback ?? '',
   };
 }
 

@@ -44,6 +44,7 @@ function emptyDraft(): LeadInput {
     email: '', cuestionario: null,
     nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '', propietario: '',
     fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
+    satTierOverride: '', satFeedback: '',
   };
 }
 
@@ -368,6 +369,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
 
   const patchLead = async (id: string, patch: Partial<LeadInput>) => {
     const prev = leads;
+    const leadAntes = leads.find(l => l.id === id);
     setLeads(ls => ls.map(l => (l.id === id ? { ...l, ...patch } : l)));
     try {
       const res = await fetch('/api/leads', {
@@ -378,6 +380,20 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setLeads(ls => ls.map(l => (l.id === id ? data.lead : l)));
+
+      // Se acaba de ganar un cliente — le pedimos al comercial una nota
+      // corta de por qué (opcional). Queda como feedback para que SAT
+      // vaya afinando sus criterios con resultados reales.
+      if (patch.estado === 'Ganado' && leadAntes && leadAntes.estado !== 'Ganado') {
+        const nota = window.prompt(`¿Por qué se ganó a ${leadAntes.nombre}? (opcional — ayuda a SAT a aprender)`);
+        if (nota && nota.trim()) {
+          fetch('/api/sat-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ leadId: id, clienteNombre: leadAntes.nombre, nicho: leadAntes.nicho, nota: nota.trim() }),
+          }).catch(() => {});
+        }
+      }
     } catch (e) {
       setLeads(prev);
       showToast(e instanceof Error ? e.message : 'No se pudo actualizar el lead', false);

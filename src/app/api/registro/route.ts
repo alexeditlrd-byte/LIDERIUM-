@@ -40,6 +40,8 @@ export async function POST(req: NextRequest) {
       estado: 'Nuevo',
       prioridad: 'Media',
       observacion: '',
+      satTierOverride: '',
+      satFeedback: '',
     });
     return NextResponse.json({ success: true, duplicate, leadId: lead.id });
   } catch (e) {
