@@ -8,6 +8,11 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 const LIMA_OFFSET_MIN = -5 * 60; // America/Lima, sin horario de verano
 const SLOT_STEP_MIN = 30;
 
+// "Responsable" (Winona/Maryori) y "Propietario" (Terry/Santiago) son
+// campos separados en el formulario de reuniones, cada uno guardado en su
+// propia columna de "meetings" (mentor / propietario). Como los nombres no
+// se repiten entre ambos grupos, el motor de disponibilidad busca la
+// ocupación de una persona en cualquiera de las dos columnas.
 export const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago', 'Winona', 'Maryori'];
 
 interface HorarioLaboral {
@@ -48,7 +53,10 @@ export async function getHorarioLaboral(propietario: string): Promise<HorarioLab
 interface BusyRange { start: number; end: number; }
 
 async function getBusyRanges(propietario: string, fechaYMD: string, excludeMeetingId?: string): Promise<BusyRange[]> {
-  const { data } = await supabaseAdmin.from('meetings').select('id, scheduled_at, duration_minutes').eq('mentor', propietario);
+  const { data } = await supabaseAdmin
+    .from('meetings')
+    .select('id, scheduled_at, duration_minutes')
+    .or(`mentor.eq.${propietario},propietario.eq.${propietario}`);
   return (data ?? [])
     .filter((m) => m.id !== excludeMeetingId)
     .map((m) => {

@@ -77,10 +77,12 @@ const RESPONSABLE_EMAIL: Record<string, string> = {
   Maryori: 'maryori.drgj@gmail.com',
 };
 
-// Personas con disponibilidad/agenda propia para reuniones — el mismo
-// campo "Responsable" del formulario se usa para calcular sus horarios
-// libres, sin crear ningún campo "Propietario" aparte.
-const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago', 'Winona', 'Maryori'];
+// Personas con disponibilidad/agenda propia para reuniones. "Responsable"
+// (Winona/Maryori) y "Propietario" (Terry/Santiago) son campos separados en
+// el formulario, cada uno con su propia grilla de horarios y su propia
+// validación de choques — ambos reutilizan el mismo motor de disponibilidad.
+const RESPONSABLES_DISPONIBILIDAD = ['Winona', 'Maryori'];
+const PROPIETARIOS_DISPONIBILIDAD = ['Terry', 'Santiago'];
 
 const meetings = [
   { day: 'Hoy · Mar 17', time: '10:00', client: 'Aurora Café', type: 'Revisión de contenido', who: 'Mateo', c: '#2E6CA0' },
@@ -214,7 +216,7 @@ export default function Staff({ onLogout }: StaffProps) {
 
   const [reuniones, setReuniones] = useState<any[]>([]);
   const [showReunionModal, setShowReunionModal] = useState(false);
-  const [reunionForm, setReunionForm] = useState({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', fecha: '', hora: '', duracion: 45 });
+  const [reunionForm, setReunionForm] = useState({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', propietario: '', fecha: '', hora: '', duracion: 45 });
   const [creatingReunion, setCreatingReunion] = useState(false);
   const [reunionCreated, setReunionCreated] = useState<{ meetLink: string } | null>(null);
   const [reunionErr, setReunionErr] = useState('');
@@ -223,12 +225,23 @@ export default function Staff({ onLogout }: StaffProps) {
   useEffect(() => {
     const { mentor, fecha, duracion } = reunionForm;
     Promise.resolve().then(() => {
-      if (!mentor || !fecha || !PROPIETARIOS_DISPONIBILIDAD.includes(mentor)) { setAvailableSlots(null); return; }
+      if (!mentor || !fecha || !RESPONSABLES_DISPONIBILIDAD.includes(mentor)) { setAvailableSlots(null); return; }
       return fetch(`/api/disponibilidad?propietario=${encodeURIComponent(mentor)}&fecha=${fecha}&duracion=${duracion}`)
         .then(r => r.json())
         .then(d => setAvailableSlots(d.slots ?? []));
     }).catch(() => setAvailableSlots([]));
   }, [reunionForm.mentor, reunionForm.fecha, reunionForm.duracion]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [availablePropietarioSlots, setAvailablePropietarioSlots] = useState<{ time: string; available: boolean }[] | null>(null);
+  useEffect(() => {
+    const { propietario, fecha, duracion } = reunionForm;
+    Promise.resolve().then(() => {
+      if (!propietario || !fecha || !PROPIETARIOS_DISPONIBILIDAD.includes(propietario)) { setAvailablePropietarioSlots(null); return; }
+      return fetch(`/api/disponibilidad?propietario=${encodeURIComponent(propietario)}&fecha=${fecha}&duracion=${duracion}`)
+        .then(r => r.json())
+        .then(d => setAvailablePropietarioSlots(d.slots ?? []));
+    }).catch(() => setAvailablePropietarioSlots([]));
+  }, [reunionForm.propietario, reunionForm.fecha, reunionForm.duracion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch('/api/clientes').then(r => r.json()).then(d => setDbClients(d.clients ?? [])).catch(() => {});
@@ -246,7 +259,7 @@ export default function Staff({ onLogout }: StaffProps) {
   const shiftReunionDay = (delta: number) => setReunionDay(d => { const nd = new Date(d); nd.setDate(nd.getDate() + delta); return nd; });
   const goToToday = () => setReunionDay(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const [ownerFilter, setOwnerFilter] = useState('Todos');
-  const ownerOfMeeting = (m: any) => comercialLeads.find(l => l.id === m.client_slug)?.propietario || '';
+  const ownerOfMeeting = (m: any) => m.propietario || comercialLeads.find(l => l.id === m.client_slug)?.propietario || '';
 
   const openReschedule = (m: any) => {
     const d = new Date(m.scheduled_at);
@@ -448,7 +461,7 @@ export default function Staff({ onLogout }: StaffProps) {
   };
 
   const openReunionModal = () => {
-    setReunionForm({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', fecha: '', hora: '', duracion: 45 });
+    setReunionForm({ clientSlug: '', clientName: '', clientEmail: '', title: '', mentor: '', mentorRole: '', mentorEmail: '', propietario: '', fecha: '', hora: '', duracion: 45 });
     setReunionCreated(null);
     setReunionErr('');
     setShowReunionModal(true);
@@ -1198,7 +1211,7 @@ export default function Staff({ onLogout }: StaffProps) {
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Cliente</label>
                           <Dropdown value={reunionForm.clientSlug} onChange={slug => {
                             const lead = comercialLeads.find(l => l.id === slug);
-                            setReunionForm(f => ({ ...f, clientSlug: slug, clientName: lead?.nombre ?? '', clientEmail: '', mentorRole: lead?.plan ?? '' }));
+                            setReunionForm(f => ({ ...f, clientSlug: slug, clientName: lead?.nombre ?? '', clientEmail: '', mentorRole: lead?.plan ?? '', propietario: lead?.propietario ?? f.propietario }));
                           }} className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
                             options={[{ value: '', label: 'Selecciona cliente…' }, ...comercialLeads.map(lead => ({ value: lead.id, label: lead.nombre }))]} />
                           {(() => {
@@ -1218,7 +1231,7 @@ export default function Staff({ onLogout }: StaffProps) {
                               setReunionForm(f => ({ ...f, mentor, mentorEmail: RESPONSABLE_EMAIL[mentor] ?? f.mentorEmail }));
                             }}
                               className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
-                              options={[{ value: '', label: 'Selecciona…' }, ...PROPIETARIOS_DISPONIBILIDAD.map(r => ({ value: r, label: r }))]} />
+                              options={[{ value: '', label: 'Selecciona…' }, ...RESPONSABLES_DISPONIBILIDAD.map(r => ({ value: r, label: r }))]} />
                           </div>
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plan</label>
@@ -1226,6 +1239,30 @@ export default function Staff({ onLogout }: StaffProps) {
                               {reunionForm.mentorRole || '—'}
                             </div>
                           </div>
+                        </div>
+                        <div>
+                          <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Propietario</label>
+                          <Dropdown value={reunionForm.propietario} onChange={propietario => setReunionForm(f => ({ ...f, propietario }))}
+                            className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                            options={[{ value: '', label: 'Selecciona…' }, ...PROPIETARIOS_DISPONIBILIDAD.map(p => ({ value: p, label: p }))]} />
+                          {reunionForm.propietario && (
+                            !availablePropietarioSlots ? null : availablePropietarioSlots.length === 0 ? (
+                              <div className="mt-2 w-full px-3 py-2 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[12.5px] font-semibold text-[#9AA0A8]">Sin horario laboral ese día para {reunionForm.propietario}</div>
+                            ) : (
+                              <div className="mt-2 w-full max-h-[46px] hover:max-h-[180px] overflow-y-auto border-[1.5px] border-[#E2E5EA] rounded-[12px] px-2 py-2 flex flex-wrap gap-1.5 transition-all">
+                                {availablePropietarioSlots.map(s => (
+                                  <div key={s.time}
+                                    className={`px-2 py-1 rounded-[7px] text-[12px] font-bold border ${
+                                      s.available
+                                        ? 'bg-[#EAF7F1] text-[#1F9B6E] border-[#CFEBDF]'
+                                        : 'bg-[#F4F6F8] text-[#C2C8D2] border-[#E2E5EA] line-through'
+                                    }`}>
+                                    {s.available ? '🟢' : '🔴'} {s.time}
+                                  </div>
+                                ))}
+                              </div>
+                            )
+                          )}
                         </div>
                         <div>
                           <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Gmail del responsable</label>
