@@ -61,6 +61,32 @@ function money(n: number) {
   const sign = v < 0 ? '-' : '';
   return sign + '$' + Math.abs(v).toLocaleString('en-US');
 }
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+function dayGroupLabel(dayStart: number, today: number) {
+  const d = new Date(dayStart);
+  const fecha = `${String(d.getDate()).padStart(2, '0')} de ${MONTH_NAMES[d.getMonth()].toLowerCase()} de ${d.getFullYear()}`;
+  const diffDias = Math.round((today - dayStart) / 86400000);
+  if (diffDias === 0) return `Hoy (${fecha})`;
+  if (diffDias === 1) return `Ayer (${fecha})`;
+  return fecha;
+}
+// Agrupa los leads por día de creación real (createdAt), del más reciente
+// al más antiguo — solo visual, no cambia estado ni orden de la lista.
+function groupLeadsByDay(leadsList: Lead[]) {
+  const today = startOfDay(new Date());
+  const map = new Map<number, Lead[]>();
+  for (const lead of leadsList) {
+    const raw = lead.createdAt ? new Date(lead.createdAt) : new Date();
+    const key = startOfDay(raw);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key)!.push(lead);
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([dayStart, dayLeads]) => ({ key: dayStart, label: dayGroupLabel(dayStart, today), leads: dayLeads }));
+}
 function leadInMonth(lead: Lead, ym: string) {
   const parts = String(lead.fechaInicio || '').split('/');
   if (parts.length !== 3) return false;
@@ -219,6 +245,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       return true;
     });
   }, [monthLeads, search, filter, responsableFilter]);
+
+  const visibleGroups = useMemo(() => groupLeadsByDay(visible), [visible]);
 
   const newCount = monthLeads.filter(l => l.estado === 'Nuevo').length;
   const altaCount = monthLeads.filter(l => l.prioridad === 'Alta').length;
@@ -452,48 +480,56 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
               style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr 1fr .9fr 1fr 1.1fr', minWidth: '900px' }}>
               <span>Cliente</span><span>Nicho</span><span>Fase de venta</span><span>Plan / Precio</span><span>Responsable</span><span>Estado</span><span className="text-right">Acciones</span>
             </div>
-            {visible.map(lead => {
-              const ec = ESTADO_STYLE[lead.estado];
-              return (
-                <div key={lead.id} onClick={() => setSelectedId(lead.id)}
-                  className="grid px-6 py-[13px] items-center border-b border-[#F2F4F7] last:border-b-0 cursor-pointer hover:bg-[#FAFBFC] transition"
-                  style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr 1fr .9fr 1fr 1.1fr', minWidth: '900px', background: lead.estado === 'Nuevo' ? 'rgba(31,155,110,.04)' : undefined }}>
-                  <div className="flex items-center gap-[10px] min-w-0">
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
-                    <div className="min-w-0">
-                      <div className="text-[13.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
-                      <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{lead.instagram}</div>
-                    </div>
-                  </div>
-                  <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.nicho}</div>
-                  <div className="text-[12px] text-[#8A929E] font-semibold">{lead.faseVenta}</div>
-                  <div>
-                    <div className="text-[12.5px] font-bold text-[#15171C]">{lead.plan}</div>
-                    <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio)}</div>
-                  </div>
-                  <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.responsable}</div>
-                  <div onClick={e => e.stopPropagation()}>
-                    <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
-                      style={{ background: ec.bg, color: ec.color }}
-                      className="w-full border-none rounded-[7px] px-2.5 py-[6px] text-[11.5px] font-black cursor-pointer outline-none" />
-                  </div>
-                  <div onClick={e => e.stopPropagation()} className="flex gap-[6px] justify-end">
-                    <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer" title="WhatsApp"
-                      className="w-8 h-8 rounded-[8px] bg-[#EAF7F1] flex items-center justify-center text-[#1F9B6E] no-underline">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14L21 3" /></svg>
-                    </a>
-                    <a href={mailLink(lead.nombre)} title="Correo"
-                      className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] flex items-center justify-center text-[#5A6270] no-underline">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5" /><path d="M22 6l-10 7L2 6" /></svg>
-                    </a>
-                    <button onClick={() => deleteLead(lead)} disabled={deletingId === lead.id} title="Eliminar lead"
-                      className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] border-none flex items-center justify-center text-[#5A6270] cursor-pointer hover:bg-[#FCEDED] hover:text-[#D14343] transition disabled:opacity-50 disabled:cursor-not-allowed">
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
-                    </button>
-                  </div>
+            {visibleGroups.map(group => (
+              <div key={group.key}>
+                <div className="px-6 py-2 bg-[#FAFBFC] border-b border-[#F0F2F5] flex items-center gap-2 sticky top-0 z-10">
+                  <span className="text-[11px] font-black text-[#5A6270] uppercase tracking-[0.05em]">{group.label}</span>
+                  <span className="text-[10.5px] font-bold text-[#AEB4BE]">({group.leads.length})</span>
                 </div>
-              );
-            })}
+                {group.leads.map(lead => {
+                  const ec = ESTADO_STYLE[lead.estado];
+                  return (
+                    <div key={lead.id} onClick={() => setSelectedId(lead.id)}
+                      className="grid px-6 py-[13px] items-center border-b border-[#F2F4F7] last:border-b-0 cursor-pointer hover:bg-[#FAFBFC] transition"
+                      style={{ gridTemplateColumns: '1.6fr 1.1fr 1fr 1fr .9fr 1fr 1.1fr', minWidth: '900px', background: lead.estado === 'Nuevo' ? 'rgba(31,155,110,.04)' : undefined }}>
+                      <div className="flex items-center gap-[10px] min-w-0">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
+                        <div className="min-w-0">
+                          <div className="text-[13.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                          <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{lead.instagram}</div>
+                        </div>
+                      </div>
+                      <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.nicho}</div>
+                      <div className="text-[12px] text-[#8A929E] font-semibold">{lead.faseVenta}</div>
+                      <div>
+                        <div className="text-[12.5px] font-bold text-[#15171C]">{lead.plan}</div>
+                        <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio)}</div>
+                      </div>
+                      <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.responsable}</div>
+                      <div onClick={e => e.stopPropagation()}>
+                        <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
+                          style={{ background: ec.bg, color: ec.color }}
+                          className="w-full border-none rounded-[7px] px-2.5 py-[6px] text-[11.5px] font-black cursor-pointer outline-none" />
+                      </div>
+                      <div onClick={e => e.stopPropagation()} className="flex gap-[6px] justify-end">
+                        <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                          className="w-8 h-8 rounded-[8px] bg-[#EAF7F1] flex items-center justify-center text-[#1F9B6E] no-underline">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14L21 3" /></svg>
+                        </a>
+                        <a href={mailLink(lead.nombre)} title="Correo"
+                          className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] flex items-center justify-center text-[#5A6270] no-underline">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2.5" /><path d="M22 6l-10 7L2 6" /></svg>
+                        </a>
+                        <button onClick={() => deleteLead(lead)} disabled={deletingId === lead.id} title="Eliminar lead"
+                          className="w-8 h-8 rounded-[8px] bg-[#F4F6F8] border-none flex items-center justify-center text-[#5A6270] cursor-pointer hover:bg-[#FCEDED] hover:text-[#D14343] transition disabled:opacity-50 disabled:cursor-not-allowed">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /></svg>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
           </div>
         </div>
       ) : (

@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export interface Lead {
   id: string;
+  createdAt: string; // ISO — cuándo se creó el lead de verdad, para agrupar por día (no confundir con fechaInicio, que es editable)
   nombre: string;
   instagram: string;
   numero: string;
@@ -29,7 +30,7 @@ export interface Lead {
   observacion: string;
 }
 
-export type LeadInput = Omit<Lead, 'id'>;
+export type LeadInput = Omit<Lead, 'id' | 'createdAt'>;
 
 export function sheetConfigured() {
   return true;
@@ -37,6 +38,7 @@ export function sheetConfigured() {
 
 interface LeadRow {
   id: string;
+  created_at: string;
   nombre: string;
   instagram: string;
   numero: string;
@@ -85,6 +87,7 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
 function rowToLead(row: LeadRow): Lead {
   return {
     id: row.id,
+    createdAt: row.created_at,
     nombre: row.nombre,
     instagram: row.instagram,
     numero: row.numero,
