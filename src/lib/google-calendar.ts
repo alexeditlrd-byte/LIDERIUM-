@@ -35,7 +35,7 @@ interface CreateEventInput {
   title: string;
   startTime: string; // ISO
   durationMinutes: number;
-  guestEmail: string;
+  guestEmails: string[];
   description?: string;
 }
 
@@ -77,7 +77,7 @@ export async function createCalendarEvent(input: CreateEventInput): Promise<{ ev
         description: input.description ?? '',
         start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
         end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
-        attendees: input.guestEmail ? [{ email: input.guestEmail }] : [],
+        attendees: input.guestEmails.map((email) => ({ email })),
         conferenceData: {
           createRequest: {
             requestId: `liderium-${Date.now()}`,

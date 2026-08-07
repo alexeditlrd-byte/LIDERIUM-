@@ -1270,6 +1270,12 @@ export default function Staff({ onLogout }: StaffProps) {
                             className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
                           <p className="text-[12px] text-[#8A929E] font-semibold mt-1.5">Se le invita a este correo para que la reunión aparezca en su Google Calendar.</p>
                         </div>
+                        <div>
+                          <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Gmail del cliente</label>
+                          <input type="email" placeholder="cliente@correo.com" value={reunionForm.clientEmail} onChange={e => setReunionForm(f => ({ ...f, clientEmail: e.target.value }))}
+                            className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                          <p className="text-[12px] text-[#8A929E] font-semibold mt-1.5">Opcional — si lo agregas, también se le invita a la reunión de Google Calendar.</p>
+                        </div>
                         <div className="grid grid-cols-3 gap-3">
                           <div>
                             <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Fecha</label>

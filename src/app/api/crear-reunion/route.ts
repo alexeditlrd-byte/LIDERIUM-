@@ -22,11 +22,12 @@ export async function POST(req: NextRequest) {
   let meetLink = '';
   let eventId = '';
   try {
+    const guestEmails = [...new Set([mentorEmail, clientEmail].filter(Boolean))];
     const event = await createCalendarEvent({
       title,
       startTime: scheduledAt,
       durationMinutes: durationMinutes ?? 45,
-      guestEmail: mentorEmail || clientEmail || '',
+      guestEmails,
       description: `Reunión con ${clientName} — Liderium`,
     });
     meetLink = event.meetLink;
