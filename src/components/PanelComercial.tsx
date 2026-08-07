@@ -38,7 +38,7 @@ function emptyDraft(): LeadInput {
   const today = new Date();
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
   return {
-    nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '',
+    nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '', linkAds: '',
     nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '', propietario: '',
     fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
   };
@@ -584,6 +584,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <label className={labelClass}>Plataformas activas</label>
                 <input className={inputClass} value={draft.plataformas} onChange={e => setDraft(d => ({ ...d, plataformas: e.target.value }))} placeholder="Instagram, TikTok" />
               </div>
+              <div className="col-span-2">
+                <label className={labelClass}>Link de Ads</label>
+                <input className={inputClass} value={draft.linkAds} onChange={e => setDraft(d => ({ ...d, linkAds: e.target.value }))} placeholder="Link del anuncio del que vino el lead" />
+              </div>
               <div>
                 <label className={labelClass}>Plan</label>
                 <Dropdown className={inputClass} value={draft.plan} onChange={plan => {
@@ -701,8 +705,8 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
             <div className="grid grid-cols-2 gap-2.5 mt-4">
               {(
                 [
-                  ['tipoInfoproductor', 'Tipo infoproductor'], ['nicho', 'Nicho'], ['plataformas', 'Plataformas activas'],
-                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas'>, string][]
+                  ['tipoInfoproductor', 'Tipo infoproductor'], ['nicho', 'Nicho'], ['plataformas', 'Plataformas activas'], ['linkAds', 'Link de Ads'],
+                ] as [keyof Pick<Lead, 'tipoInfoproductor' | 'nicho' | 'plataformas' | 'linkAds'>, string][]
               ).map(([field, label]) => (
                 <div key={field} className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
                   <div className={labelClass}>{label}</div>

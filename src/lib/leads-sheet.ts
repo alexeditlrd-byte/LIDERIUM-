@@ -13,6 +13,7 @@ export interface Lead {
   tipoInfoproductor: string;
   nicho: string;
   plataformas: string;
+  linkAds: string;
   nps: string;
   plan: string;
   faseVenta: string;
@@ -42,6 +43,7 @@ interface LeadRow {
   tipo_infoproductor: string;
   nicho: string;
   plataformas: string;
+  link_ads: string;
   nps: string;
   plan: string;
   fase_venta: string;
@@ -64,6 +66,7 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
   tipoInfoproductor: 'tipo_infoproductor',
   nicho: 'nicho',
   plataformas: 'plataformas',
+  linkAds: 'link_ads',
   nps: 'nps',
   plan: 'plan',
   faseVenta: 'fase_venta',
@@ -88,6 +91,7 @@ function rowToLead(row: LeadRow): Lead {
     tipoInfoproductor: row.tipo_infoproductor,
     nicho: row.nicho,
     plataformas: row.plataformas,
+    linkAds: row.link_ads,
     nps: row.nps,
     plan: row.plan,
     faseVenta: row.fase_venta,
