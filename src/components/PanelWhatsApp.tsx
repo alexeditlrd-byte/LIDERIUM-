@@ -53,7 +53,7 @@ interface Conversation {
   updatedTime: string;
 }
 
-interface ChatMeta { responsable: string; estado: string; }
+interface ChatMeta { responsable: string; estado: string; nombre: string; }
 
 interface Message {
   id: string;
@@ -129,7 +129,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
 
   const updateChatMeta = (phone: string, patch: Partial<ChatMeta>) => {
     setChatMeta(prev => {
-      const current: ChatMeta = prev[phone] ?? { responsable: '', estado: 'Pendiente' };
+      const current: ChatMeta = prev[phone] ?? { responsable: '', estado: 'Pendiente', nombre: '' };
       return { ...prev, [phone]: { ...current, ...patch } };
     });
     fetch('/api/chat-meta', {
@@ -138,6 +138,11 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       body: JSON.stringify({ canal: 'whatsapp', conversationKey: phone, ...patch }),
     }).catch(() => showToast('No se pudo guardar', false));
   };
+
+  // WhatsApp no siempre manda un nombre de perfil (a veces solo el
+  // número) — este nombre a mano manda sobre eso, tanto en la lista como
+  // al crear el lead desde el chat.
+  const displayName = (c: Conversation) => chatMeta[c.phone]?.nombre?.trim() || c.contactName;
 
   // Vincular con Comercial: qué lead corresponde a este número, y su
   // score de SAT si ya vino del cuestionario — todo en vivo, sin guardar
@@ -168,7 +173,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       const res = await fetch('/api/chat-crear-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: selected.contactName, numero: selected.phone }),
+        body: JSON.stringify({ nombre: displayName(selected), numero: selected.phone }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -249,6 +254,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       if (!res.ok) throw new Error(data.error);
       const contactName = newChatDraft.nombre.trim() || phone;
       setConversations(prev => [{ phone, contactName, lastText: text, updatedTime: new Date().toISOString() }, ...prev.filter(c => c.phone !== phone)]);
+      if (newChatDraft.nombre.trim()) updateChatMeta(phone, { nombre: newChatDraft.nombre.trim() });
       showToast('Mensaje enviado — chat creado');
       setShowNewChatModal(false);
       openConversation(phone);
@@ -360,8 +366,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
     return conversations.filter(c => {
-      const meta = chatMeta[c.phone] ?? { responsable: '', estado: 'Pendiente' };
-      if (q && !(c.contactName.toLowerCase().includes(q) || c.phone.includes(q))) return false;
+      const meta = chatMeta[c.phone] ?? { responsable: '', estado: 'Pendiente', nombre: '' };
+      if (q && !(c.contactName.toLowerCase().includes(q) || (meta.nombre && meta.nombre.toLowerCase().includes(q)) || c.phone.includes(q))) return false;
       if (responsableFilter !== 'Todos' && meta.responsable !== responsableFilter) return false;
       if (estadoFilter !== 'Todos' && meta.estado !== estadoFilter) return false;
       if (soloNoLeidos) {
@@ -596,7 +602,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                       borderLeft: hasUnread ? '3px solid #1F9B6E' : '3px solid transparent',
                     }}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{c.contactName}</div>
+                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{displayName(c)}</div>
                       {hasUnread && (
                         <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">Nuevo</span>
                       )}
@@ -624,8 +630,18 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
           ) : (
             <>
               <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
-                <div>
-                  <div className="font-grotesk font-bold text-[15px] text-[#15171C]">{selected.contactName}</div>
+                <div className="min-w-0">
+                  <input
+                    key={selected.phone}
+                    defaultValue={displayName(selected)}
+                    placeholder="Ponle un nombre a este chat…"
+                    onBlur={e => {
+                      const value = e.target.value.trim();
+                      if (value !== (chatMeta[selected.phone]?.nombre?.trim() || '')) updateChatMeta(selected.phone, { nombre: value });
+                    }}
+                    title="Editar nombre del contacto"
+                    className="font-grotesk font-bold text-[15px] text-[#15171C] bg-transparent border-none outline-none p-0 w-full focus:underline"
+                  />
                   <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{selected.phone}</div>
                 </div>
                 <div className="flex items-center gap-2">
