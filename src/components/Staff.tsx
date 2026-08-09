@@ -7,6 +7,7 @@ import type { Lead } from '@/lib/leads-sheet';
 import PanelComercial from '@/components/PanelComercial';
 import PanelFinanzas from '@/components/PanelFinanzas';
 import PanelInstagram from '@/components/PanelInstagram';
+import PanelWhatsApp from '@/components/PanelWhatsApp';
 import PanelLeadsPrioritarios from '@/components/PanelLeadsPrioritarios';
 import Dropdown from '@/components/Dropdown';
 
@@ -14,7 +15,7 @@ interface StaffProps {
   onLogout: () => void;
 }
 
-type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'instagram' | 'sat';
+type StaffTab = 'comercial' | 'guia' | 'clientes' | 'finanzas' | 'pagos' | 'calendario' | 'instagram' | 'whatsapp' | 'sat';
 
 const ICONS: Record<string, React.ReactNode> = {
   comercial: (
@@ -53,6 +54,11 @@ const ICONS: Record<string, React.ReactNode> = {
       <rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><path d="M17.5 6.5h.01" />
     </svg>
   ),
+  whatsapp: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
+      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><path d="M15 3h6v6" /><path d="M10 14L21 3" />
+    </svg>
+  ),
   sat: (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-[18px] h-[18px]">
       <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" />
@@ -67,6 +73,7 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
   { id: 'instagram', label: 'Instagram de Santiago' },
+  { id: 'whatsapp', label: 'WhatsApp' },
 ];
 
 const titles: Record<StaffTab, string> = {
@@ -77,6 +84,7 @@ const titles: Record<StaffTab, string> = {
   pagos: 'Pagos de clientes',
   calendario: 'Calendario de reuniones',
   instagram: 'Instagram de Santiago',
+  whatsapp: 'WhatsApp',
   sat: 'SAT — Agente de priorización de leads',
 };
 
@@ -719,6 +727,9 @@ export default function Staff({ onLogout }: StaffProps) {
 
           {/* ── INSTAGRAM ── */}
           {tab === 'instagram' && <PanelInstagram showToast={showToast} />}
+
+          {/* ── WHATSAPP ── */}
+          {tab === 'whatsapp' && <PanelWhatsApp showToast={showToast} />}
 
           {/* ── GUÍA ── */}
           {tab === 'guia' && (
