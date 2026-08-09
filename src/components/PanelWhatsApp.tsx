@@ -148,13 +148,20 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   // WhatsApp no siempre manda un nombre de perfil (a veces solo el
   // número) — este nombre a mano manda sobre eso, y si hay un lead
   // vinculado, se usa el nombre del lead antes que el número en crudo.
-  const displayName = (c: Conversation) => {
-    const customName = chatMeta[c.phone]?.nombre?.trim();
-    if (customName) return customName;
-    const lead = matchLeadByPhone(satLeads, c.phone);
-    if (lead?.nombre?.trim()) return lead.nombre.trim();
-    return c.contactName;
-  };
+  // Se calcula en un solo useMemo (no una función suelta) para que
+  // React vuelva a calcularlo apenas cambien los leads, aunque la
+  // conversación ya estuviera pintada en pantalla.
+  const resolvedNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of conversations) {
+      const customName = chatMeta[c.phone]?.nombre?.trim();
+      if (customName) { map[c.phone] = customName; continue; }
+      const lead = matchLeadByPhone(satLeads, c.phone);
+      map[c.phone] = lead?.nombre?.trim() || c.contactName;
+    }
+    return map;
+  }, [conversations, chatMeta, satLeads]);
+  const displayName = (c: Conversation) => resolvedNames[c.phone] ?? c.contactName;
 
   const matchedLead = useMemo(() => {
     if (!selectedPhone) return null;
@@ -608,7 +615,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                       borderLeft: hasUnread ? '3px solid #1F9B6E' : '3px solid transparent',
                     }}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{displayName(c)}</div>
+                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{resolvedNames[c.phone] ?? c.contactName}</div>
                       {hasUnread && (
                         <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">Nuevo</span>
                       )}
@@ -638,8 +645,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
               <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <input
-                    key={`${selected.phone}:${displayName(selected)}`}
-                    defaultValue={displayName(selected)}
+                    key={`${selected.phone}:${resolvedNames[selected.phone] ?? selected.contactName}`}
+                    defaultValue={resolvedNames[selected.phone] ?? selected.contactName}
                     placeholder="Ponle un nombre a este chat…"
                     onBlur={e => {
                       const value = e.target.value.trim();
