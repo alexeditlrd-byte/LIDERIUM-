@@ -25,6 +25,14 @@ const VERTICALES = [
   { value: 'RESTAURANT', label: 'Restaurante' },
 ];
 
+const RESPONSABLES_CHAT = ['Winona', 'Maryori'];
+const ESTADOS_CHAT = ['Pendiente', 'En seguimiento', 'Resuelto'];
+const ESTADO_CHAT_COLOR: Record<string, { bg: string; color: string }> = {
+  'Pendiente': { bg: '#FBF1E2', color: '#B5740F' },
+  'En seguimiento': { bg: '#EAF1F8', color: '#2E6CA0' },
+  'Resuelto': { bg: '#EAF7F1', color: '#1F9B6E' },
+};
+
 const EMOJIS = [
   '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
   '😎', '🤩', '🥳', '😇', '🤗', '🤔', '😅', '😢', '😭', '😮',
@@ -40,6 +48,8 @@ interface Conversation {
   lastText: string;
   updatedTime: string;
 }
+
+interface ChatMeta { responsable: string; estado: string; }
 
 interface Message {
   id: string;
@@ -99,6 +109,31 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
 
   const [lastSeenTick, setLastSeenTick] = useState(0);
   const touchLastSeen = () => setLastSeenTick(t => t + 1);
+
+  // Organización: responsable asignado + estado por conversación,
+  // búsqueda y filtro de no leídos — todo esto es puramente de
+  // organización del equipo, no afecta lo que se manda a WhatsApp.
+  const [chatMeta, setChatMeta] = useState<Record<string, ChatMeta>>({});
+  const [search, setSearch] = useState('');
+  const [soloNoLeidos, setSoloNoLeidos] = useState(false);
+  const [responsableFilter, setResponsableFilter] = useState('Todos');
+  const [estadoFilter, setEstadoFilter] = useState('Todos');
+
+  useEffect(() => {
+    fetch('/api/chat-meta?canal=whatsapp').then(r => r.json()).then(d => setChatMeta(d.meta ?? {})).catch(() => {});
+  }, []);
+
+  const updateChatMeta = (phone: string, patch: Partial<ChatMeta>) => {
+    setChatMeta(prev => {
+      const current: ChatMeta = prev[phone] ?? { responsable: '', estado: 'Pendiente' };
+      return { ...prev, [phone]: { ...current, ...patch } };
+    });
+    fetch('/api/chat-meta', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canal: 'whatsapp', conversationKey: phone, ...patch }),
+    }).catch(() => showToast('No se pudo guardar', false));
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
@@ -198,6 +233,21 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
   const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
+
+  const filteredConversations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return conversations.filter(c => {
+      const meta = chatMeta[c.phone] ?? { responsable: '', estado: 'Pendiente' };
+      if (q && !(c.contactName.toLowerCase().includes(q) || c.phone.includes(q))) return false;
+      if (responsableFilter !== 'Todos' && meta.responsable !== responsableFilter) return false;
+      if (estadoFilter !== 'Todos' && meta.estado !== estadoFilter) return false;
+      if (soloNoLeidos) {
+        const hasUnread = new Date(c.updatedTime).getTime() > new Date(lastSeenMap[c.phone] || 0).getTime();
+        if (!hasUnread) return false;
+      }
+      return true;
+    });
+  }, [conversations, chatMeta, search, responsableFilter, estadoFilter, soloNoLeidos, lastSeenMap]);
 
   const pushLocalMessage = (partial: Partial<Message>) => {
     if (!selected) return;
@@ -387,14 +437,31 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
               </button>
             </div>
           </div>
+          <div className="px-4 py-3 border-b border-[#F0F2F5] flex flex-col gap-2">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre o número…"
+              className="w-full h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button onClick={() => setSoloNoLeidos(s => !s)}
+                className={`px-2.5 py-1 rounded-[7px] text-[11px] font-bold cursor-pointer border transition ${soloNoLeidos ? 'bg-[#15171C] text-white border-[#15171C]' : 'bg-white text-[#5A6270] border-[#E2E5EA]'}`}>
+                No leídos
+              </button>
+              <Dropdown value={responsableFilter} onChange={setResponsableFilter} options={['Todos', ...RESPONSABLES_CHAT]}
+                className="h-[26px] bg-white border border-[#E2E5EA] rounded-[7px] px-2 text-[11px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+              <Dropdown value={estadoFilter} onChange={setEstadoFilter} options={['Todos', ...ESTADOS_CHAT]}
+                className="h-[26px] bg-white border border-[#E2E5EA] rounded-[7px] px-2 text-[11px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+            </div>
+          </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="text-center py-10 text-[13px] text-[#8A929E] font-semibold">Cargando…</div>
             ) : conversations.length === 0 ? (
               <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Sin conversaciones todavía. En cuanto alguien te escriba por WhatsApp, va a aparecer aquí.</div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Ningún chat coincide con el filtro.</div>
             ) : (
-              conversations.map(c => {
+              filteredConversations.map(c => {
                 const hasUnread = new Date(c.updatedTime).getTime() > new Date(lastSeenMap[c.phone] || 0).getTime();
+                const meta = chatMeta[c.phone];
                 return (
                   <div key={c.phone} onClick={() => openConversation(c.phone)}
                     className="px-5 py-3.5 cursor-pointer border-b border-[#F2F4F7] transition"
@@ -409,7 +476,15 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                       )}
                     </div>
                     <div className="text-[11.5px] font-semibold truncate" style={{ color: hasUnread ? '#3B8E6F' : '#9AA0A8' }}>{c.lastText || '—'}</div>
-                    <div className="text-[10.5px] font-semibold text-[#C2C8D2] mt-0.5">{timeAgo(c.updatedTime)}</div>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-[10.5px] font-semibold text-[#C2C8D2]">{timeAgo(c.updatedTime)}</span>
+                      {meta?.responsable && (
+                        <span className="text-[10px] font-black text-[#5A6270] bg-[#F4F6F8] px-1.5 py-[1px] rounded-full">{meta.responsable}</span>
+                      )}
+                      {meta?.estado && meta.estado !== 'Pendiente' && (
+                        <span className="text-[10px] font-black px-1.5 py-[1px] rounded-full" style={{ background: ESTADO_CHAT_COLOR[meta.estado]?.bg, color: ESTADO_CHAT_COLOR[meta.estado]?.color }}>{meta.estado}</span>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -422,9 +497,20 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
             <div className="flex-1 flex items-center justify-center text-[13.5px] text-[#8A929E] font-semibold">Selecciona una conversación</div>
           ) : (
             <>
-              <div className="px-6 py-4 border-b border-[#F0F2F5]">
-                <div className="font-grotesk font-bold text-[15px] text-[#15171C]">{selected.contactName}</div>
-                <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{selected.phone}</div>
+              <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <div className="font-grotesk font-bold text-[15px] text-[#15171C]">{selected.contactName}</div>
+                  <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{selected.phone}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Dropdown value={chatMeta[selected.phone]?.responsable ?? ''} onChange={v => updateChatMeta(selected.phone, { responsable: v })}
+                    options={[{ value: '', label: 'Sin asignar' }, ...RESPONSABLES_CHAT.map(r => ({ value: r, label: r }))]}
+                    className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" align="right" />
+                  <Dropdown value={chatMeta[selected.phone]?.estado || 'Pendiente'} onChange={v => updateChatMeta(selected.phone, { estado: v })}
+                    options={ESTADOS_CHAT}
+                    style={{ background: ESTADO_CHAT_COLOR[chatMeta[selected.phone]?.estado || 'Pendiente']?.bg, color: ESTADO_CHAT_COLOR[chatMeta[selected.phone]?.estado || 'Pendiente']?.color }}
+                    className="h-8 border-none rounded-[8px] px-2.5 text-[12px] font-black cursor-pointer outline-none" align="right" />
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-3 bg-[#FAFBFC]">
                 {messages.length === 0 ? (

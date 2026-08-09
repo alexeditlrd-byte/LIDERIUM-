@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import Dropdown from '@/components/Dropdown';
 
 interface Conversation {
   id: string;
@@ -9,6 +10,8 @@ interface Conversation {
   username: string;
   updatedTime: string;
 }
+
+interface ChatMeta { responsable: string; estado: string; }
 
 interface Message {
   id: string;
@@ -24,6 +27,14 @@ interface QuickReply {
   id: string;
   texto: string;
 }
+
+const RESPONSABLES_CHAT = ['Winona', 'Maryori'];
+const ESTADOS_CHAT = ['Pendiente', 'En seguimiento', 'Resuelto'];
+const ESTADO_CHAT_COLOR: Record<string, { bg: string; color: string }> = {
+  'Pendiente': { bg: '#FBF1E2', color: '#B5740F' },
+  'En seguimiento': { bg: '#EAF1F8', color: '#2E6CA0' },
+  'Resuelto': { bg: '#EAF7F1', color: '#1F9B6E' },
+};
 
 const EMOJIS = [
   '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
@@ -73,6 +84,31 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   useEffect(() => {
     fetch('/api/instagram/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
   }, []);
+
+  // Organización: responsable asignado + estado por conversación,
+  // búsqueda y filtro de no leídos — solo organiza el trabajo del
+  // equipo, no cambia nada de lo que se manda a Instagram.
+  const [chatMeta, setChatMeta] = useState<Record<string, ChatMeta>>({});
+  const [search, setSearch] = useState('');
+  const [soloNoLeidos, setSoloNoLeidos] = useState(false);
+  const [responsableFilter, setResponsableFilter] = useState('Todos');
+  const [estadoFilter, setEstadoFilter] = useState('Todos');
+
+  useEffect(() => {
+    fetch('/api/chat-meta?canal=instagram').then(r => r.json()).then(d => setChatMeta(d.meta ?? {})).catch(() => {});
+  }, []);
+
+  const updateChatMeta = (convId: string, patch: Partial<ChatMeta>) => {
+    setChatMeta(prev => {
+      const current: ChatMeta = prev[convId] ?? { responsable: '', estado: 'Pendiente' };
+      return { ...prev, [convId]: { ...current, ...patch } };
+    });
+    fetch('/api/chat-meta', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canal: 'instagram', conversationKey: convId, ...patch }),
+    }).catch(() => showToast('No se pudo guardar', false));
+  };
 
   const addQuickReply = async () => {
     if (!newQuickReply.trim()) return;
@@ -253,6 +289,21 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
   const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
 
+  const filteredConversations = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return conversations.filter(c => {
+      const meta = chatMeta[c.id] ?? { responsable: '', estado: 'Pendiente' };
+      if (q && !c.username.toLowerCase().includes(q)) return false;
+      if (responsableFilter !== 'Todos' && meta.responsable !== responsableFilter) return false;
+      if (estadoFilter !== 'Todos' && meta.estado !== estadoFilter) return false;
+      if (soloNoLeidos) {
+        const hasUnread = new Date(c.updatedTime).getTime() > new Date(lastSeenMap[c.id] || 0).getTime();
+        if (!hasUnread) return false;
+      }
+      return true;
+    });
+  }, [conversations, chatMeta, search, responsableFilter, estadoFilter, soloNoLeidos, lastSeenMap]);
+
   const pushLocalMessage = (partial: Partial<Message>) => {
     if (!selected) return;
     const newMsg: Message = {
@@ -341,14 +392,31 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
             </button>
           </div>
+          <div className="px-4 py-3 border-b border-[#F0F2F5] flex flex-col gap-2">
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por usuario…"
+              className="w-full h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button onClick={() => setSoloNoLeidos(s => !s)}
+                className={`px-2.5 py-1 rounded-[7px] text-[11px] font-bold cursor-pointer border transition ${soloNoLeidos ? 'bg-[#15171C] text-white border-[#15171C]' : 'bg-white text-[#5A6270] border-[#E2E5EA]'}`}>
+                No leídos
+              </button>
+              <Dropdown value={responsableFilter} onChange={setResponsableFilter} options={['Todos', ...RESPONSABLES_CHAT]}
+                className="h-[26px] bg-white border border-[#E2E5EA] rounded-[7px] px-2 text-[11px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+              <Dropdown value={estadoFilter} onChange={setEstadoFilter} options={['Todos', ...ESTADOS_CHAT]}
+                className="h-[26px] bg-white border border-[#E2E5EA] rounded-[7px] px-2 text-[11px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+            </div>
+          </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="text-center py-10 text-[13px] text-[#8A929E] font-semibold">Cargando…</div>
             ) : conversations.length === 0 ? (
               <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Sin conversaciones todavía.</div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="text-center py-10 px-5 text-[13px] text-[#8A929E] font-semibold">Ningún chat coincide con el filtro.</div>
             ) : (
-              conversations.map(c => {
+              filteredConversations.map(c => {
                 const hasUnread = new Date(c.updatedTime).getTime() > new Date(lastSeenMap[c.id] || 0).getTime();
+                const meta = chatMeta[c.id];
                 return (
                   <div key={c.id} onClick={() => openConversation(c.id)} onMouseEnter={() => prefetchMessages(c.id)}
                     className="px-5 py-3.5 cursor-pointer border-b border-[#F2F4F7] transition"
@@ -362,7 +430,15 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                         <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">Nuevo</span>
                       )}
                     </div>
-                    <div className="text-[11.5px] font-semibold" style={{ color: hasUnread ? '#3B8E6F' : '#9AA0A8' }}>{timeAgo(c.updatedTime)}</div>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-[11.5px] font-semibold" style={{ color: hasUnread ? '#3B8E6F' : '#9AA0A8' }}>{timeAgo(c.updatedTime)}</span>
+                      {meta?.responsable && (
+                        <span className="text-[10px] font-black text-[#5A6270] bg-[#F4F6F8] px-1.5 py-[1px] rounded-full">{meta.responsable}</span>
+                      )}
+                      {meta?.estado && meta.estado !== 'Pendiente' && (
+                        <span className="text-[10px] font-black px-1.5 py-[1px] rounded-full" style={{ background: ESTADO_CHAT_COLOR[meta.estado]?.bg, color: ESTADO_CHAT_COLOR[meta.estado]?.color }}>{meta.estado}</span>
+                      )}
+                    </div>
                   </div>
                 );
               })
@@ -375,8 +451,17 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
             <div className="flex-1 flex items-center justify-center text-[13.5px] text-[#8A929E] font-semibold">Selecciona una conversación</div>
           ) : (
             <>
-              <div className="px-6 py-4 border-b border-[#F0F2F5]">
+              <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
                 <div className="font-grotesk font-bold text-[15px] text-[#15171C]">@{selected.username}</div>
+                <div className="flex items-center gap-2">
+                  <Dropdown value={chatMeta[selected.id]?.responsable ?? ''} onChange={v => updateChatMeta(selected.id, { responsable: v })}
+                    options={[{ value: '', label: 'Sin asignar' }, ...RESPONSABLES_CHAT.map(r => ({ value: r, label: r }))]}
+                    className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" align="right" />
+                  <Dropdown value={chatMeta[selected.id]?.estado || 'Pendiente'} onChange={v => updateChatMeta(selected.id, { estado: v })}
+                    options={ESTADOS_CHAT}
+                    style={{ background: ESTADO_CHAT_COLOR[chatMeta[selected.id]?.estado || 'Pendiente']?.bg, color: ESTADO_CHAT_COLOR[chatMeta[selected.id]?.estado || 'Pendiente']?.color }}
+                    className="h-8 border-none rounded-[8px] px-2.5 text-[12px] font-black cursor-pointer outline-none" align="right" />
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-3 bg-[#FAFBFC]">
                 {messages.length === 0 ? (
