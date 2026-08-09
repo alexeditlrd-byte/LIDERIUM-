@@ -42,7 +42,7 @@ export async function sendText(to: string, text: string): Promise<void> {
   }
 }
 
-export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'video' | 'document'): Promise<void> {
+export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'video' | 'document' | 'audio'): Promise<void> {
   const url = `${GRAPH}/${phoneNumberId()}/messages`;
   const res = await fetch(url, {
     method: 'POST',

@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
+const EMOJIS = [
+  '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
+  '😎', '🤩', '🥳', '😇', '🤗', '🤔', '😅', '😢', '😭', '😮',
+  '😱', '😴', '🙄', '😬', '🤝', '👍', '👎', '👏', '🙏', '💪',
+  '👋', '✌️', '🤞', '👌', '❤️', '🧡', '💛', '💚', '💙', '💜',
+  '🔥', '✨', '🎉', '🎊', '💯', '⭐', '✅', '❌', '⏰', '📅',
+  '📌', '📎', '📷', '🎥', '💰', '💵', '📈', '🚀', '💡', '🙌',
+];
+
 interface Conversation {
   phone: string;
   contactName: string;
@@ -47,6 +56,14 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const messagesCache = useRef<Record<string, Message[]>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const localIdCounter = useRef(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [sendingVoice, setSendingVoice] = useState(false);
 
   const [lastSeenTick, setLastSeenTick] = useState(0);
   const touchLastSeen = () => setLastSeenTick(t => t + 1);
@@ -150,6 +167,24 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
   const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
 
+  const pushLocalMessage = (partial: Partial<Message>) => {
+    if (!selected) return;
+    const newMsg: Message = {
+      id: `local-${localIdCounter.current++}`,
+      direction: 'out',
+      text: '',
+      mediaUrl: null,
+      mediaType: null,
+      createdTime: new Date().toISOString(),
+      ...partial,
+    };
+    setMessages(m => {
+      const updated = [...m, newMsg];
+      messagesCache.current[selected.phone] = updated;
+      return updated;
+    });
+  };
+
   const submitReply = async () => {
     const text = reply;
     if (!selected || !text.trim()) return;
@@ -162,24 +197,82 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      const newMsg: Message = {
-        id: `local-${localIdCounter.current++}`,
-        direction: 'out',
-        text,
-        mediaUrl: null,
-        mediaType: null,
-        createdTime: new Date().toISOString(),
-      };
-      setMessages(m => {
-        const updated = [...m, newMsg];
-        messagesCache.current[selected.phone] = updated;
-        return updated;
-      });
+      pushLocalMessage({ text });
       setReply('');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo enviar', false);
     }
     setSending(false);
+  };
+
+  const uploadAndSend = async (file: File, mediaType: 'image' | 'video' | 'document' | 'audio') => {
+    if (!selected) return;
+    const urlRes = await fetch('/api/whatsapp/upload-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: file.name }),
+    });
+    const urlData = await urlRes.json();
+    if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+
+    const { error: uploadError } = await supabase.storage.from('wa-media').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+    if (uploadError) throw uploadError;
+
+    const res = await fetch('/api/whatsapp/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: selected.phone, mediaUrl: urlData.publicUrl, mediaType }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    pushLocalMessage({ mediaUrl: urlData.publicUrl, mediaType });
+  };
+
+  const handleFileSelect = async (file: File | null) => {
+    if (!file || !selected) return;
+    setUploadingFile(true);
+    try {
+      const mediaType: 'image' | 'video' | 'document' =
+        file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : 'document';
+      await uploadAndSend(file, mediaType);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo enviar el archivo', false);
+    }
+    setUploadingFile(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const toggleRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : 'audio/webm;codecs=opus';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const file = new File([blob], `nota-de-voz.${ext}`, { type: mimeType });
+        setSendingVoice(true);
+        try {
+          await uploadAndSend(file, 'audio');
+        } catch (e) {
+          showToast(e instanceof Error ? e.message : 'No se pudo enviar la nota de voz', false);
+        }
+        setSendingVoice(false);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      showToast('No se pudo acceder al micrófono', false);
+    }
   };
 
   return (
@@ -252,6 +345,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                               <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer">
                                 <img src={m.mediaUrl} alt="Adjunto" className="rounded-[10px] max-w-full max-h-[260px] block" />
                               </a>
+                            ) : m.mediaType === 'audio' ? (
+                              <audio src={m.mediaUrl} controls className="max-w-full" />
                             ) : (
                               <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="underline font-semibold" style={{ color: isMe ? '#9fc3e3' : '#2E6CA0' }}>
                                 📎 {m.text || 'Ver documento'}
@@ -267,14 +362,53 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                 )}
                 <div ref={messagesEndRef} />
               </div>
-              <div className="px-6 py-4 border-t border-[#F0F2F5]">
+              <div className="relative px-6 py-4 border-t border-[#F0F2F5]">
+                {showEmojiPicker && (
+                  <div className="absolute bottom-full left-6 mb-2 w-[280px] bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
+                    <div className="grid grid-cols-8 gap-1">
+                      {EMOJIS.map(emoji => (
+                        <button key={emoji} type="button" onClick={() => setReply(r => r + emoji)}
+                          className="w-8 h-8 flex items-center justify-center text-[18px] bg-transparent border-none rounded-[7px] cursor-pointer hover:bg-[#F4F6F8]">
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="flex gap-[10px]">
+                  <input ref={fileInputRef} type="file" accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx" className="hidden"
+                    onChange={e => handleFileSelect(e.target.files?.[0] ?? null)} />
+                  <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} title="Enviar archivo"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center bg-[#F4F6F8] hover:bg-[#ECEEF2] border-none rounded-[12px] cursor-pointer text-[#5A6270] disabled:opacity-50 disabled:cursor-not-allowed">
+                    {uploadingFile ? (
+                      <svg className="animate-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                    )}
+                  </button>
+                  <button onClick={() => setShowEmojiPicker(s => !s)} title="Emojis"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer text-[18px] transition"
+                    style={{ background: showEmojiPicker ? '#EAF1F8' : '#F4F6F8' }}>
+                    😊
+                  </button>
+                  <button onClick={toggleRecording} disabled={sendingVoice} title={recording ? 'Detener y enviar' : 'Grabar nota de voz'}
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: recording ? '#FCEDED' : '#F4F6F8', color: recording ? '#D14343' : '#5A6270' }}>
+                    {sendingVoice ? (
+                      <svg className="animate-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+                    ) : recording ? (
+                      <span className="w-3 h-3 rounded-[3px] bg-[#D14343] animate-pulse" />
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><path d="M12 19v4M8 23h8" /></svg>
+                    )}
+                  </button>
                   <input
                     value={reply}
                     onChange={e => setReply(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') submitReply(); }}
-                    placeholder="Escribe una respuesta…"
-                    className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
+                    placeholder={recording ? 'Grabando nota de voz…' : 'Escribe una respuesta…'}
+                    disabled={recording}
+                    className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition disabled:opacity-60"
                   />
                   <button onClick={submitReply} disabled={sending || !reply.trim()}
                     className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">

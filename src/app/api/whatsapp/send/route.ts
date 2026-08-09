@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { sendText, sendMedia } from '@/lib/whatsapp';
 
+const MEDIA_TYPES = ['image', 'video', 'document', 'audio'];
+
 export async function POST(req: NextRequest) {
   const { phone, text, mediaUrl, mediaType } = await req.json();
   if (!phone) return NextResponse.json({ error: 'Falta destinatario' }, { status: 400 });
 
+  const tipo = MEDIA_TYPES.includes(mediaType) ? mediaType : 'document';
+
   try {
     if (mediaUrl) {
-      await sendMedia(phone, mediaUrl, mediaType === 'video' ? 'video' : 'image');
+      await sendMedia(phone, mediaUrl, tipo);
     } else if (text?.trim()) {
       await sendText(phone, text.trim());
     } else {
@@ -23,7 +27,7 @@ export async function POST(req: NextRequest) {
       direction: 'out',
       text: text?.trim() ?? '',
       media_url: mediaUrl ?? null,
-      media_type: mediaUrl ? (mediaType === 'video' ? 'video' : 'image') : null,
+      media_type: mediaUrl ? tipo : null,
     });
 
     return NextResponse.json({ success: true });
