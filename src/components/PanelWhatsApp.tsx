@@ -647,7 +647,11 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                     placeholder="Ponle un nombre a este chat…"
                     onBlur={e => {
                       const value = e.target.value.trim();
-                      if (value !== (chatMeta[selected.phone]?.nombre?.trim() || '')) updateChatMeta(selected.phone, { nombre: value });
+                      // Solo guarda si de verdad escribiste algo distinto a lo
+                      // que ya se estaba mostrando (nombre del lead, o el
+                      // número) — así hacer clic y salir sin tocar nada no
+                      // termina guardando ese valor como si fuera manual.
+                      if (value !== selected.resolvedName) updateChatMeta(selected.phone, { nombre: value });
                     }}
                     title="Editar nombre del contacto"
                     className="font-grotesk font-bold text-[15px] text-[#15171C] bg-transparent border-none outline-none p-0 w-full focus:underline"
