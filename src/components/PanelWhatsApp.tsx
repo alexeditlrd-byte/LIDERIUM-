@@ -638,7 +638,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
               <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <input
-                    key={selected.phone}
+                    key={`${selected.phone}:${displayName(selected)}`}
                     defaultValue={displayName(selected)}
                     placeholder="Ponle un nombre a este chat…"
                     onBlur={e => {
