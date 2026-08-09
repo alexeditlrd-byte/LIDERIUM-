@@ -2,6 +2,28 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import Dropdown from '@/components/Dropdown';
+
+const VERTICALES = [
+  { value: 'UNDEFINED', label: 'Sin definir' },
+  { value: 'OTHER', label: 'Otro' },
+  { value: 'AUTO', label: 'Automóviles' },
+  { value: 'BEAUTY', label: 'Belleza, spa y salón' },
+  { value: 'APPAREL', label: 'Ropa y accesorios' },
+  { value: 'EDU', label: 'Educación' },
+  { value: 'ENTERTAIN', label: 'Entretenimiento' },
+  { value: 'EVENT_PLAN', label: 'Organización de eventos' },
+  { value: 'FINANCE', label: 'Finanzas y banca' },
+  { value: 'GROCERY', label: 'Abarrotes' },
+  { value: 'GOVT', label: 'Gobierno' },
+  { value: 'HOTEL', label: 'Hotel y alojamiento' },
+  { value: 'HEALTH', label: 'Salud' },
+  { value: 'NONPROFIT', label: 'Sin fines de lucro' },
+  { value: 'PROF_SERVICES', label: 'Servicios profesionales' },
+  { value: 'RETAIL', label: 'Comercio minorista' },
+  { value: 'TRAVEL', label: 'Viajes y transporte' },
+  { value: 'RESTAURANT', label: 'Restaurante' },
+];
 
 const EMOJIS = [
   '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
@@ -64,6 +86,16 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const audioChunksRef = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
   const [sendingVoice, setSendingVoice] = useState(false);
+
+  // Perfil de negocio (foto, descripción, categoría) — lo que ve el
+  // cliente al abrir "Info. del contacto" en su WhatsApp.
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileDraft, setProfileDraft] = useState({ about: '', description: '', email: '', address: '', website: '', vertical: 'UNDEFINED' });
+  const [profilePictureUrl, setProfilePictureUrl] = useState('');
+  const [loadingProfile, setLoadingProfile] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   const [lastSeenTick, setLastSeenTick] = useState(0);
   const touchLastSeen = () => setLastSeenTick(t => t + 1);
@@ -275,8 +307,78 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     }
   };
 
+  const openProfileModal = () => {
+    setShowProfileModal(true);
+    setLoadingProfile(true);
+    fetch('/api/whatsapp/business-profile')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { showToast(d.error, false); return; }
+        const p = d.profile;
+        setProfileDraft({
+          about: p.about ?? '',
+          description: p.description ?? '',
+          email: p.email ?? '',
+          address: p.address ?? '',
+          website: p.websites?.[0] ?? '',
+          vertical: p.vertical || 'UNDEFINED',
+        });
+        setProfilePictureUrl(p.profilePictureUrl ?? '');
+      })
+      .catch(() => showToast('No se pudo cargar el perfil de WhatsApp', false))
+      .finally(() => setLoadingProfile(false));
+  };
+
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const res = await fetch('/api/whatsapp/business-profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          about: profileDraft.about,
+          description: profileDraft.description,
+          email: profileDraft.email,
+          address: profileDraft.address,
+          websites: profileDraft.website ? [profileDraft.website] : [],
+          vertical: profileDraft.vertical,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      showToast('Perfil de WhatsApp actualizado');
+      setShowProfileModal(false);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar', false);
+    }
+    setSavingProfile(false);
+  };
+
+  const handlePhotoSelect = async (file: File | null) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/whatsapp/business-profile/photo', { method: 'POST', body });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setProfilePictureUrl(URL.createObjectURL(file));
+      showToast('Foto de perfil actualizada — puede tardar unos minutos en verse en WhatsApp');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo subir la foto', false);
+    }
+    setUploadingPhoto(false);
+    if (photoInputRef.current) photoInputRef.current.value = '';
+  };
+
   return (
     <div>
+      <div className="flex items-center justify-end mb-4">
+        <button onClick={openProfileModal} className="flex items-center gap-2 bg-white text-[#15171C] border border-[#E2E5EA] font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:border-steel transition">
+          ⚙️ Perfil del negocio
+        </button>
+      </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: '300px 1fr', height: '620px' }}>
         <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F5]">
@@ -421,6 +523,90 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
           )}
         </div>
       </div>
+
+      {/* Modal perfil de negocio */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!savingProfile) setShowProfileModal(false); }}>
+          <div className="bg-white rounded-[22px] w-full max-w-[520px] max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5] sticky top-0 bg-white">
+              <div>
+                <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Perfil del negocio</div>
+                <div className="text-[13px] text-[#8A929E] font-semibold mt-0.5">Lo que ven tus clientes al abrir &ldquo;Info. del contacto&rdquo; en WhatsApp</div>
+              </div>
+              <button onClick={() => setShowProfileModal(false)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2] flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            {loadingProfile ? (
+              <div className="text-center py-14 text-[13px] text-[#8A929E] font-semibold">Cargando…</div>
+            ) : (
+              <>
+                <div className="px-7 py-6 flex flex-col gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-full bg-[#F4F6F8] border border-[#E2E5EA] overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {profilePictureUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={profilePictureUrl} alt="Foto de perfil" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-[22px] font-black text-[#AEB4BE]">S</span>
+                      )}
+                    </div>
+                    <div>
+                      <input ref={photoInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={e => handlePhotoSelect(e.target.files?.[0] ?? null)} />
+                      <button type="button" onClick={() => photoInputRef.current?.click()} disabled={uploadingPhoto}
+                        className="px-3.5 py-2 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[9px] font-bold text-[12.5px] cursor-pointer hover:border-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        {uploadingPhoto ? 'Subiendo…' : 'Cambiar foto'}
+                      </button>
+                      <p className="text-[11.5px] text-[#9AA0A8] font-semibold mt-1.5">JPG o PNG</p>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Acerca de</label>
+                    <input value={profileDraft.about} onChange={e => setProfileDraft(d => ({ ...d, about: e.target.value }))}
+                      placeholder="Ej. Disponible"
+                      className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Descripción</label>
+                    <textarea value={profileDraft.description} onChange={e => setProfileDraft(d => ({ ...d, description: e.target.value }))}
+                      placeholder="A qué se dedica Liderium…"
+                      className="w-full min-h-[70px] px-4 py-3 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-y" />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Categoría</label>
+                    <Dropdown className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                      value={profileDraft.vertical} onChange={v => setProfileDraft(d => ({ ...d, vertical: v }))} options={VERTICALES} />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Correo</label>
+                    <input type="email" value={profileDraft.email} onChange={e => setProfileDraft(d => ({ ...d, email: e.target.value }))}
+                      placeholder="contacto@liderium.com"
+                      className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Sitio web</label>
+                    <input value={profileDraft.website} onChange={e => setProfileDraft(d => ({ ...d, website: e.target.value }))}
+                      placeholder="https://liderium.vercel.app"
+                      className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                  </div>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Dirección</label>
+                    <input value={profileDraft.address} onChange={e => setProfileDraft(d => ({ ...d, address: e.target.value }))}
+                      className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                  </div>
+                </div>
+                <div className="flex gap-3 px-7 pb-7">
+                  <button onClick={() => setShowProfileModal(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
+                  <button onClick={saveProfile} disabled={savingProfile}
+                    className="flex-1 h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                    {savingProfile ? 'Guardando…' : 'Guardar'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
