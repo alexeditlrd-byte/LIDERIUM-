@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
+      about: 'Disponible',
       description: 'escriben los guiones adaptados a las tendencias actuales para maximizar las probabilidades de que los videos se vuelvan virales sin necesidad de pagar publicidad (100% orgánico).',
       vertical: 'EVENT_PLAN',
       email: 'contacto@liderium.com',
