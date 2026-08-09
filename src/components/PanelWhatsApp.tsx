@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Dropdown from '@/components/Dropdown';
+import ChatLeadCard from '@/components/ChatLeadCard';
+import { useSatContext } from '@/lib/use-sat-context';
+import { matchLeadByPhone } from '@/lib/lead-match';
+import { computeLeadScore, esLeadCuestionario } from '@/lib/lead-scoring';
 
 const VERTICALES = [
   { value: 'UNDEFINED', label: 'Sin definir' },
@@ -133,6 +137,47 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ canal: 'whatsapp', conversationKey: phone, ...patch }),
     }).catch(() => showToast('No se pudo guardar', false));
+  };
+
+  // Vincular con Comercial: qué lead corresponde a este número, y su
+  // score de SAT si ya vino del cuestionario — todo en vivo, sin guardar
+  // ningún vínculo aparte (se recalcula comparando el teléfono).
+  const satCtx = useSatContext();
+  const [creatingLead, setCreatingLead] = useState(false);
+
+  const matchedLead = useMemo(() => {
+    if (!selectedPhone) return null;
+    return matchLeadByPhone(satCtx.leads, selectedPhone);
+  }, [satCtx.leads, selectedPhone]);
+
+  const leadScore = useMemo(() => {
+    if (!matchedLead || !esLeadCuestionario(matchedLead)) return null;
+    const result = computeLeadScore(matchedLead, {
+      nichosGanados: satCtx.nichosGanados,
+      tieneReunion: satCtx.reunionLeadIds.has(matchedLead.id),
+      tienePago: satCtx.pagoLeadIds.has(matchedLead.id),
+      perfil: satCtx.perfil,
+    });
+    return { score: result.score, tier: result.tierCalculado };
+  }, [matchedLead, satCtx.nichosGanados, satCtx.reunionLeadIds, satCtx.pagoLeadIds, satCtx.perfil]);
+
+  const handleCreateLeadFromChat = async () => {
+    if (!selected) return;
+    setCreatingLead(true);
+    try {
+      const res = await fetch('/api/chat-crear-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre: selected.contactName, numero: selected.phone }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      satCtx.setLeads(prev => [data.lead, ...prev]);
+      showToast(data.duplicate ? 'Ya existía un lead con este número — vinculado' : 'Lead creado y vinculado');
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo crear el lead', false);
+    }
+    setCreatingLead(false);
   };
 
   useEffect(() => {
@@ -512,6 +557,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                     className="h-8 border-none rounded-[8px] px-2.5 text-[12px] font-black cursor-pointer outline-none" align="right" />
                 </div>
               </div>
+              <ChatLeadCard lead={matchedLead} score={leadScore} creating={creatingLead} onCreateLead={handleCreateLeadFromChat} />
               <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-3 bg-[#FAFBFC]">
                 {messages.length === 0 ? (
                   <div className="text-center text-[13px] text-[#8A929E] font-semibold">Sin mensajes.</div>
