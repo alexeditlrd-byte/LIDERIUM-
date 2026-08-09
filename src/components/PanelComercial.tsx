@@ -41,7 +41,7 @@ function emptyDraft(): LeadInput {
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
   return {
     nombre: '', instagram: '', numero: '', tipoInfoproductor: '', nicho: '', plataformas: '', linkAds: '',
-    email: '', cuestionario: null,
+    email: '', origenCanal: '', cuestionario: null,
     nps: '', plan: 'SKOOL', faseVenta: 'Prospección', probabilidad: '', responsable: '', propietario: '',
     fechaInicio, fechaRenovacion: '', precio: PLAN_PRICES.SKOOL, abono: 0, estado: 'Nuevo', prioridad: 'Media', observacion: '',
     satTierOverride: '', satFeedback: '',

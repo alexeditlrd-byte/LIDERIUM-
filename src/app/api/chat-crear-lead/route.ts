@@ -7,10 +7,11 @@ import { createLead } from '@/lib/leads-sheet';
 // Reutiliza createLead directo (misma asignación automática de
 // responsable y anti-duplicado por teléfono que ya usa /registro).
 export async function POST(req: NextRequest) {
-  const { nombre, numero, instagram } = await req.json();
+  const { nombre, numero, instagram, canal } = await req.json();
   if (!nombre?.trim() || !(numero?.trim() || instagram?.trim())) {
     return NextResponse.json({ error: 'Falta el nombre y un teléfono o usuario de Instagram' }, { status: 400 });
   }
+  const origenCanal = canal === 'whatsapp' || canal === 'instagram' ? canal : '';
 
   const today = new Date();
   const fechaInicio = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
       plataformas: '',
       linkAds: '',
       email: '',
+      origenCanal,
       cuestionario: null,
       nps: '',
       plan: '',

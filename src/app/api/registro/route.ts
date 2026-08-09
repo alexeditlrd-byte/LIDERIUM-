@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
       plataformas: '',
       linkAds: linkAds ?? '',
       email: email.trim(),
+      origenCanal: 'web',
       cuestionario: facturacionLabel ? { 'Facturación mensual': facturacionLabel } : null,
       nps: '',
       plan: '',

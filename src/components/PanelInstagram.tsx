@@ -336,7 +336,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
       const res = await fetch('/api/chat-crear-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: selected.username, instagram: selected.username }),
+        body: JSON.stringify({ nombre: selected.username, instagram: selected.username, canal: 'instagram' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

@@ -183,7 +183,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       const res = await fetch('/api/chat-crear-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: selected.resolvedName, numero: selected.phone }),
+        body: JSON.stringify({ nombre: selected.resolvedName, numero: selected.phone, canal: 'whatsapp' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);

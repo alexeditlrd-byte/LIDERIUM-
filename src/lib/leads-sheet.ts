@@ -16,6 +16,11 @@ export interface Lead {
   plataformas: string;
   linkAds: string;
   email: string;
+  // Canal por el que entró el lead: 'web' (formulario /registro),
+  // 'whatsapp'/'instagram' (creado desde un chat) o '' (manual, o leads
+  // de antes de que existiera este campo). Se etiqueta al crear el lead,
+  // no se intenta reconstruir después.
+  origenCanal: string;
   // Respuestas del formulario público de captación que no tienen columna
   // propia (ej. facturación mensual) — { pregunta: respuesta }.
   cuestionario: Record<string, string> | null;
@@ -58,6 +63,7 @@ interface LeadRow {
   plataformas: string;
   link_ads: string;
   email: string;
+  origen_canal: string;
   cuestionario: Record<string, string> | null;
   nps: string;
   plan: string;
@@ -85,6 +91,7 @@ const FIELD_TO_COLUMN: Record<keyof LeadInput, string> = {
   plataformas: 'plataformas',
   linkAds: 'link_ads',
   email: 'email',
+  origenCanal: 'origen_canal',
   cuestionario: 'cuestionario',
   nps: 'nps',
   plan: 'plan',
@@ -115,6 +122,7 @@ function rowToLead(row: LeadRow): Lead {
     plataformas: row.plataformas,
     linkAds: row.link_ads,
     email: row.email,
+    origenCanal: row.origen_canal ?? '',
     cuestionario: row.cuestionario ?? null,
     nps: row.nps,
     plan: row.plan,
