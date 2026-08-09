@@ -139,32 +139,38 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     }).catch(() => showToast('No se pudo guardar', false));
   };
 
-  // WhatsApp no siempre manda un nombre de perfil (a veces solo el
-  // número) — este nombre a mano manda sobre eso, tanto en la lista como
-  // al crear el lead desde el chat.
-  const displayName = (c: Conversation) => chatMeta[c.phone]?.nombre?.trim() || c.contactName;
-
   // Vincular con Comercial: qué lead corresponde a este número, y su
   // score de SAT si ya vino del cuestionario — todo en vivo, sin guardar
   // ningún vínculo aparte (se recalcula comparando el teléfono).
-  const satCtx = useSatContext();
+  const { leads: satLeads, setLeads: setSatLeads, nichosGanados, reunionLeadIds, pagoLeadIds, perfil: satPerfil } = useSatContext();
   const [creatingLead, setCreatingLead] = useState(false);
+
+  // WhatsApp no siempre manda un nombre de perfil (a veces solo el
+  // número) — este nombre a mano manda sobre eso, y si hay un lead
+  // vinculado, se usa el nombre del lead antes que el número en crudo.
+  const displayName = (c: Conversation) => {
+    const customName = chatMeta[c.phone]?.nombre?.trim();
+    if (customName) return customName;
+    const lead = matchLeadByPhone(satLeads, c.phone);
+    if (lead?.nombre?.trim()) return lead.nombre.trim();
+    return c.contactName;
+  };
 
   const matchedLead = useMemo(() => {
     if (!selectedPhone) return null;
-    return matchLeadByPhone(satCtx.leads, selectedPhone);
-  }, [satCtx.leads, selectedPhone]);
+    return matchLeadByPhone(satLeads, selectedPhone);
+  }, [satLeads, selectedPhone]);
 
   const leadScore = useMemo(() => {
     if (!matchedLead || !esLeadCuestionario(matchedLead)) return null;
     const result = computeLeadScore(matchedLead, {
-      nichosGanados: satCtx.nichosGanados,
-      tieneReunion: satCtx.reunionLeadIds.has(matchedLead.id),
-      tienePago: satCtx.pagoLeadIds.has(matchedLead.id),
-      perfil: satCtx.perfil,
+      nichosGanados,
+      tieneReunion: reunionLeadIds.has(matchedLead.id),
+      tienePago: pagoLeadIds.has(matchedLead.id),
+      perfil: satPerfil,
     });
     return { score: result.score, tier: result.tierCalculado };
-  }, [matchedLead, satCtx.nichosGanados, satCtx.reunionLeadIds, satCtx.pagoLeadIds, satCtx.perfil]);
+  }, [matchedLead, nichosGanados, reunionLeadIds, pagoLeadIds, satPerfil]);
 
   const handleCreateLeadFromChat = async () => {
     if (!selected) return;
@@ -177,7 +183,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      satCtx.setLeads(prev => [data.lead, ...prev]);
+      setSatLeads(prev => [data.lead, ...prev]);
       showToast(data.duplicate ? 'Ya existía un lead con este número — vinculado' : 'Lead creado y vinculado');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo crear el lead', false);
