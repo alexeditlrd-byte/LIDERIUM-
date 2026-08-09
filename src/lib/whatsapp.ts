@@ -18,6 +18,12 @@ function phoneNumberId() {
   return id;
 }
 
+function businessAccountId() {
+  const id = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+  if (!id) throw new Error('WHATSAPP_BUSINESS_ACCOUNT_ID no está configurado');
+  return id;
+}
+
 export async function sendText(to: string, text: string): Promise<void> {
   const url = `${GRAPH}/${phoneNumberId()}/messages`;
   const res = await fetch(url, {
@@ -56,6 +62,51 @@ export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'v
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudo enviar el archivo de WhatsApp');
+}
+
+// Para escribirle primero a alguien que nunca te escribió, WhatsApp no
+// deja mandar texto libre — exige una plantilla ya aprobada por Meta.
+// Esto lee las plantillas aprobadas y calcula cuántas variables {{1}},
+// {{2}}... tiene el cuerpo, para armar el formulario en el panel.
+export interface MessageTemplate {
+  name: string;
+  language: string;
+  bodyText: string;
+  variableCount: number;
+}
+
+export async function getMessageTemplates(): Promise<MessageTemplate[]> {
+  const url = `${GRAPH}/${businessAccountId()}/message_templates?fields=name,status,language,components&limit=100`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken()}` } });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudieron leer las plantillas');
+  interface RawTemplate { name: string; status: string; language: string; components?: { type: string; text?: string }[] }
+  return ((data.data ?? []) as RawTemplate[])
+    .filter(t => t.status === 'APPROVED')
+    .map(t => {
+      const bodyText = t.components?.find(c => c.type === 'BODY')?.text ?? '';
+      const variableCount = (bodyText.match(/\{\{\d+\}\}/g) ?? []).length;
+      return { name: t.name, language: t.language, bodyText, variableCount };
+    });
+}
+
+export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<void> {
+  const components = params.length > 0
+    ? [{ type: 'body', parameters: params.map(text => ({ type: 'text', text })) }]
+    : [];
+  const url = `${GRAPH}/${phoneNumberId()}/messages`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: { name, language: { code: language }, components },
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudo enviar la plantilla');
 }
 
 // Perfil de negocio (lo que ve el cliente al abrir "Info. del contacto"

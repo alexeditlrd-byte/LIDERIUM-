@@ -180,6 +180,84 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     setCreatingLead(false);
   };
 
+  // Nuevo chat: para escribirle primero a alguien que nunca te escribió,
+  // WhatsApp exige mandar una plantilla ya aprobada por Meta como primer
+  // mensaje — no deja texto libre. Por eso este modal pide elegir una
+  // plantilla (con sus variables) en vez de dejar escribir cualquier cosa.
+  const [showNewChatModal, setShowNewChatModal] = useState(false);
+  const [newChatDraft, setNewChatDraft] = useState({ nombre: '', phone: '' });
+  const [templates, setTemplates] = useState<{ name: string; language: string; bodyText: string; variableCount: number }[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [templatesError, setTemplatesError] = useState('');
+  const [selectedTemplateName, setSelectedTemplateName] = useState('');
+  const [templateParams, setTemplateParams] = useState<string[]>([]);
+  const [sendingTemplate, setSendingTemplate] = useState(false);
+
+  const openNewChatModal = () => {
+    setShowNewChatModal(true);
+    setNewChatDraft({ nombre: '', phone: '' });
+    setSelectedTemplateName('');
+    setTemplateParams([]);
+    setTemplatesError('');
+    setLoadingTemplates(true);
+    fetch('/api/whatsapp/templates')
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setTemplatesError(d.error); return; }
+        setTemplates(d.templates ?? []);
+        if (d.templates?.[0]) {
+          setSelectedTemplateName(d.templates[0].name);
+          setTemplateParams(new Array(d.templates[0].variableCount).fill(''));
+        }
+      })
+      .catch(() => setTemplatesError('No se pudieron cargar las plantillas'))
+      .finally(() => setLoadingTemplates(false));
+  };
+
+  const selectedTemplate = templates.find(t => t.name === selectedTemplateName) ?? null;
+
+  const pickTemplate = (name: string) => {
+    setSelectedTemplateName(name);
+    const tpl = templates.find(t => t.name === name);
+    setTemplateParams(new Array(tpl?.variableCount ?? 0).fill(''));
+  };
+
+  const previewTemplateText = () => {
+    if (!selectedTemplate) return '';
+    let text = selectedTemplate.bodyText;
+    templateParams.forEach((v, i) => { text = text.replace(`{{${i + 1}}}`, v || `{{${i + 1}}}`); });
+    return text;
+  };
+
+  const sendNewChat = async () => {
+    if (!selectedTemplate || !newChatDraft.phone.trim()) return;
+    setSendingTemplate(true);
+    try {
+      const phone = newChatDraft.phone.replace(/[^0-9]/g, '');
+      const text = previewTemplateText();
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone, text,
+          templateName: selectedTemplate.name,
+          templateLanguage: selectedTemplate.language,
+          templateParams,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      const contactName = newChatDraft.nombre.trim() || phone;
+      setConversations(prev => [{ phone, contactName, lastText: text, updatedTime: new Date().toISOString() }, ...prev.filter(c => c.phone !== phone)]);
+      showToast('Mensaje enviado — chat creado');
+      setShowNewChatModal(false);
+      openConversation(phone);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo enviar la plantilla', false);
+    }
+    setSendingTemplate(false);
+  };
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages, selectedPhone]);
@@ -474,6 +552,9 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F5]">
             <div className="font-grotesk font-bold text-[15px] text-[#15171C]">Conversaciones</div>
             <div className="flex items-center gap-2">
+              <button onClick={openNewChatModal} title="Nuevo chat" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
+              </button>
               <button onClick={openProfileModal} title="Perfil del negocio" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2] text-[14px]">
                 ⚙️
               </button>
@@ -655,6 +736,77 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
           )}
         </div>
       </div>
+
+      {/* Modal nuevo chat */}
+      {showNewChatModal && (
+        <div className="fixed inset-0 z-[9999] bg-[rgba(0,0,0,.55)] flex items-center justify-center p-6" onClick={() => { if (!sendingTemplate) setShowNewChatModal(false); }}>
+          <div className="bg-white rounded-[22px] w-full max-w-[480px] max-h-[88vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-7 py-5 border-b border-[#F0F2F5] sticky top-0 bg-white">
+              <div>
+                <div className="font-grotesk font-bold text-[19px] text-[#15171C]">Nuevo chat</div>
+                <div className="text-[13px] text-[#8A929E] font-semibold mt-0.5">WhatsApp exige una plantilla aprobada para escribirle primero a alguien nuevo</div>
+              </div>
+              <button onClick={() => setShowNewChatModal(false)} className="w-9 h-9 rounded-[10px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2] flex-shrink-0">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <div className="px-7 py-6 flex flex-col gap-4">
+              <div>
+                <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Nombre</label>
+                <input value={newChatDraft.nombre} onChange={e => setNewChatDraft(d => ({ ...d, nombre: e.target.value }))}
+                  placeholder="Nombre del contacto"
+                  className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+              </div>
+              <div>
+                <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Número de WhatsApp</label>
+                <input value={newChatDraft.phone} onChange={e => setNewChatDraft(d => ({ ...d, phone: e.target.value }))}
+                  placeholder="51987654321"
+                  className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+              </div>
+
+              {loadingTemplates ? (
+                <div className="text-center py-6 text-[13px] text-[#8A929E] font-semibold">Cargando plantillas…</div>
+              ) : templatesError ? (
+                <div className="bg-[#FCEDED] border border-[#F3C9C9] rounded-[12px] px-4 py-3 text-[12.5px] text-[#B4232F] font-semibold">{templatesError}</div>
+              ) : templates.length === 0 ? (
+                <div className="bg-[#FBF1E2] border border-[#F0D9A8] rounded-[12px] px-4 py-3 text-[12.5px] text-[#8A6020] font-semibold">
+                  Todavía no tienes ninguna plantilla aprobada por Meta. Tienes que crear una en el WhatsApp Manager y esperar su aprobación antes de poder escribirle primero a un contacto nuevo.
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plantilla</label>
+                    <Dropdown className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
+                      value={selectedTemplateName} onChange={pickTemplate} options={templates.map(t => ({ value: t.name, label: t.name }))} />
+                  </div>
+                  {templateParams.map((val, i) => (
+                    <div key={i}>
+                      <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Variable {`{{${i + 1}}}`}</label>
+                      <input value={val} onChange={e => setTemplateParams(prev => prev.map((v, vi) => (vi === i ? e.target.value : v)))}
+                        className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                    </div>
+                  ))}
+                  {selectedTemplate && (
+                    <div className="bg-[#F6F8FA] border border-[#E7E9EE] rounded-[12px] px-4 py-3">
+                      <div className="text-[11px] font-black text-[#8A929E] uppercase tracking-[0.05em] mb-1.5">Vista previa</div>
+                      <div className="text-[13px] text-[#15171C] font-medium whitespace-pre-wrap">{previewTemplateText()}</div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            {templates.length > 0 && (
+              <div className="flex gap-3 px-7 pb-7">
+                <button onClick={() => setShowNewChatModal(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
+                <button onClick={sendNewChat} disabled={sendingTemplate || !newChatDraft.phone.trim() || !selectedTemplate}
+                  className="flex-1 h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
+                  {sendingTemplate ? 'Enviando…' : 'Enviar y crear chat'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal perfil de negocio */}
       {showProfileModal && (

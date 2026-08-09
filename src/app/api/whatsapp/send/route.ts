@@ -1,17 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { sendText, sendMedia } from '@/lib/whatsapp';
+import { sendText, sendMedia, sendTemplate } from '@/lib/whatsapp';
 
 const MEDIA_TYPES = ['image', 'video', 'document', 'audio'];
 
 export async function POST(req: NextRequest) {
-  const { phone, text, mediaUrl, mediaType } = await req.json();
+  const { phone, text, mediaUrl, mediaType, templateName, templateLanguage, templateParams } = await req.json();
   if (!phone) return NextResponse.json({ error: 'Falta destinatario' }, { status: 400 });
 
   const tipo = MEDIA_TYPES.includes(mediaType) ? mediaType : 'document';
 
   try {
-    if (mediaUrl) {
+    if (templateName) {
+      await sendTemplate(phone, templateName, templateLanguage || 'es', templateParams ?? []);
+    } else if (mediaUrl) {
       await sendMedia(phone, mediaUrl, tipo);
     } else if (text?.trim()) {
       await sendText(phone, text.trim());
