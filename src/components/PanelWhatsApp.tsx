@@ -374,18 +374,18 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-4">
-        <button onClick={openProfileModal} className="flex items-center gap-2 bg-white text-[#15171C] border border-[#E2E5EA] font-bold text-[13px] px-4 py-[9px] rounded-[10px] cursor-pointer hover:border-steel transition">
-          ⚙️ Perfil del negocio
-        </button>
-      </div>
       <div className="grid gap-4" style={{ gridTemplateColumns: '300px 1fr', height: '620px' }}>
         <div className="bg-white border border-[#ECEEF2] rounded-[20px] overflow-hidden flex flex-col">
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F5]">
             <div className="font-grotesk font-bold text-[15px] text-[#15171C]">Conversaciones</div>
-            <button onClick={() => loadConversations()} title="Actualizar" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={openProfileModal} title="Perfil del negocio" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2] text-[14px]">
+                ⚙️
+              </button>
+              <button onClick={() => loadConversations()} title="Actualizar" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M1 20v-6h6" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto">
             {loading ? (
