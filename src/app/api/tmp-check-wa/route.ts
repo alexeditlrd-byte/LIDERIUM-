@@ -9,6 +9,15 @@ export async function GET(req: NextRequest) {
   const wabaId = process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
+  if (searchParams.get('action') === 'subscribe') {
+    const subscribeRes = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const subscribeData = await subscribeRes.json();
+    return NextResponse.json({ subscribeResult: subscribeData });
+  }
+
   const subRes = await fetch(`https://graph.facebook.com/v21.0/${wabaId}/subscribed_apps`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
