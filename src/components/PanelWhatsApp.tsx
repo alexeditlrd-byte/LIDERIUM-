@@ -148,20 +148,17 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   // WhatsApp no siempre manda un nombre de perfil (a veces solo el
   // número) — este nombre a mano manda sobre eso, y si hay un lead
   // vinculado, se usa el nombre del lead antes que el número en crudo.
-  // Se calcula en un solo useMemo (no una función suelta) para que
-  // React vuelva a calcularlo apenas cambien los leads, aunque la
-  // conversación ya estuviera pintada en pantalla.
-  const resolvedNames = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const c of conversations) {
+  // Se calcula UNA sola vez acá, sobre cada conversación, y tanto la
+  // lista como el encabezado leen ese mismo campo (conversation.resolvedName)
+  // — así no hay forma de que queden desincronizados entre sí.
+  const conversationsWithNames = useMemo(() => {
+    return conversations.map(c => {
       const customName = chatMeta[c.phone]?.nombre?.trim();
-      if (customName) { map[c.phone] = customName; continue; }
-      const lead = matchLeadByPhone(satLeads, c.phone);
-      map[c.phone] = lead?.nombre?.trim() || c.contactName;
-    }
-    return map;
+      const lead = customName ? null : matchLeadByPhone(satLeads, c.phone);
+      const resolvedName = customName || lead?.nombre?.trim() || c.contactName;
+      return { ...c, resolvedName };
+    });
   }, [conversations, chatMeta, satLeads]);
-  const displayName = (c: Conversation) => resolvedNames[c.phone] ?? c.contactName;
 
   const matchedLead = useMemo(() => {
     if (!selectedPhone) return null;
@@ -186,7 +183,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       const res = await fetch('/api/chat-crear-lead', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre: displayName(selected), numero: selected.phone }),
+        body: JSON.stringify({ nombre: selected.resolvedName, numero: selected.phone }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -371,16 +368,16 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     }).catch(() => showToast('No se pudo cargar la conversación', false));
   }, [selectedPhone]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selected = conversations.find(c => c.phone === selectedPhone) ?? null;
+  const selected = conversationsWithNames.find(c => c.phone === selectedPhone) ?? null;
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lastSeenTick es intencional, marca cuando localStorage cambió
   const lastSeenMap = useMemo(() => readLastSeen(), [lastSeenTick]);
 
   const filteredConversations = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return conversations.filter(c => {
+    return conversationsWithNames.filter(c => {
       const meta = chatMeta[c.phone] ?? { responsable: '', estado: 'Pendiente', nombre: '' };
-      if (q && !(c.contactName.toLowerCase().includes(q) || (meta.nombre && meta.nombre.toLowerCase().includes(q)) || c.phone.includes(q))) return false;
+      if (q && !(c.resolvedName.toLowerCase().includes(q) || c.phone.includes(q))) return false;
       if (responsableFilter !== 'Todos' && meta.responsable !== responsableFilter) return false;
       if (estadoFilter !== 'Todos' && meta.estado !== estadoFilter) return false;
       if (soloNoLeidos) {
@@ -389,7 +386,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       }
       return true;
     });
-  }, [conversations, chatMeta, search, responsableFilter, estadoFilter, soloNoLeidos, lastSeenMap]);
+  }, [conversationsWithNames, chatMeta, search, responsableFilter, estadoFilter, soloNoLeidos, lastSeenMap]);
 
   const pushLocalMessage = (partial: Partial<Message>) => {
     if (!selected) return;
@@ -615,7 +612,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                       borderLeft: hasUnread ? '3px solid #1F9B6E' : '3px solid transparent',
                     }}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{resolvedNames[c.phone] ?? c.contactName}</div>
+                      <div className="text-[13.5px] font-bold truncate" style={{ color: hasUnread ? '#1F9B6E' : '#15171C' }}>{c.resolvedName}</div>
                       {hasUnread && (
                         <span className="flex-shrink-0 text-[11px] font-black text-[#1F9B6E]">Nuevo</span>
                       )}
@@ -645,8 +642,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
               <div className="px-6 py-4 border-b border-[#F0F2F5] flex items-center justify-between gap-3 flex-wrap">
                 <div className="min-w-0">
                   <input
-                    key={`${selected.phone}:${resolvedNames[selected.phone] ?? selected.contactName}`}
-                    defaultValue={resolvedNames[selected.phone] ?? selected.contactName}
+                    key={`${selected.phone}:${selected.resolvedName}`}
+                    defaultValue={selected.resolvedName}
                     placeholder="Ponle un nombre a este chat…"
                     onBlur={e => {
                       const value = e.target.value.trim();
