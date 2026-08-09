@@ -25,6 +25,7 @@ function timeAgo(iso: string) {
 }
 
 const LAST_SEEN_KEY = 'liderium_wa_last_seen';
+const LAST_SEEN_INIT_KEY = 'liderium_wa_last_seen_init';
 
 function readLastSeen(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -55,11 +56,15 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   }, [messages, selectedPhone]);
 
   const ensureBaseline = (convs: Conversation[]) => {
-    const lastSeen = readLastSeen();
-    if (Object.keys(lastSeen).length > 0) return;
+    // Marca "ya visto" una sola vez por navegador, con una bandera aparte
+    // — no basta con mirar si el mapa de vistos está vacío, porque
+    // arrancó sin ninguna conversación y eso reiniciaba la línea base en
+    // cada consulta, tapando los mensajes nuevos apenas llegaban.
+    if (typeof window === 'undefined' || localStorage.getItem(LAST_SEEN_INIT_KEY)) return;
     const baseline: Record<string, string> = {};
     convs.forEach(c => { baseline[c.phone] = c.updatedTime; });
     writeLastSeen(baseline);
+    localStorage.setItem(LAST_SEEN_INIT_KEY, '1');
     touchLastSeen();
   };
 
