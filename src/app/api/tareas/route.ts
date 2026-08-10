@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
       responsable: body.responsable ?? '',
       fechaLimite: body.fechaLimite ?? '',
       completada: false,
+      archivoUrl: body.archivoUrl ?? '',
+      archivoNombre: body.archivoNombre ?? '',
     });
     return NextResponse.json({ tarea });
   } catch (e) {

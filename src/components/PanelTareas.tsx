@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Tarea } from '@/lib/tareas';
 import Dropdown from '@/components/Dropdown';
+import { supabase } from '@/lib/supabase';
 
 interface PanelTareasProps {
   showToast: (text: string, ok?: boolean) => void;
@@ -35,6 +36,31 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
   const [fechaLimite, setFechaLimite] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [archivo, setArchivo] = useState<{ url: string; nombre: string } | null>(null);
+  const [uploadingArchivo, setUploadingArchivo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleArchivoSelect = async (file: File | null) => {
+    if (!file) return;
+    setUploadingArchivo(true);
+    try {
+      const urlRes = await fetch('/api/tareas/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+      const { error: uploadError } = await supabase.storage.from('tareas-adjuntos').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+      if (uploadError) throw uploadError;
+      setArchivo({ url: urlData.publicUrl, nombre: file.name });
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo subir el archivo', false);
+    }
+    setUploadingArchivo(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   useEffect(() => {
     fetch('/api/tareas')
       .then(r => r.json())
@@ -50,12 +76,12 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
       const res = await fetch('/api/tareas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titulo: titulo.trim(), responsable, fechaLimite }),
+        body: JSON.stringify({ titulo: titulo.trim(), responsable, fechaLimite, archivoUrl: archivo?.url ?? '', archivoNombre: archivo?.nombre ?? '' }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setTareas(prev => [data.tarea, ...prev]);
-      setTitulo(''); setResponsable(''); setFechaLimite('');
+      setTitulo(''); setResponsable(''); setFechaLimite(''); setArchivo(null);
       showToast('Tarea creada');
     } catch (e) {
       showToast(e instanceof Error ? e.message : 'No se pudo crear la tarea', false);
@@ -128,11 +154,30 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
             onChange={e => setFechaLimite(e.target.value)}
             className="h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
           />
+          <input ref={fileInputRef} type="file" className="hidden" onChange={e => handleArchivoSelect(e.target.files?.[0] ?? null)} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploadingArchivo} title="Adjuntar documento"
+            className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-[#FAFBFC] hover:bg-[#F0F2F5] border-[1.5px] border-[#E2E5EA] rounded-[12px] cursor-pointer text-[#5A6270] disabled:opacity-50 disabled:cursor-not-allowed">
+            {uploadingArchivo ? (
+              <svg className="animate-spin" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+            )}
+          </button>
           <button onClick={crearTarea} disabled={saving || !titulo.trim()}
             className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap">
             {saving ? 'Guardando…' : '+ Agregar tarea'}
           </button>
         </div>
+        {archivo && (
+          <div className="flex items-center gap-2 mt-2.5">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#EAF1F8] text-[#2E6CA0] text-[11.5px] font-bold">
+              📎 {archivo.nombre}
+            </span>
+            <button onClick={() => setArchivo(null)} className="text-[11.5px] font-bold text-[#AEB4BE] hover:text-[#D14343] bg-transparent border-none cursor-pointer">
+              Quitar
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -173,6 +218,12 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
                 <div className="flex-1 min-w-0">
                   <div className={`text-[13.5px] font-semibold truncate ${t.completada ? 'line-through text-[#AEB4BE]' : 'text-[#15171C]'}`}>{t.titulo}</div>
                 </div>
+                {t.archivoUrl && (
+                  <a href={t.archivoUrl} target="_blank" rel="noopener noreferrer" title={t.archivoNombre || 'Ver documento'}
+                    className="flex-shrink-0 text-[11.5px] font-bold text-[#2E6CA0] bg-[#EAF1F8] hover:bg-[#DCEAF6] px-2 py-[3px] rounded-full max-w-[140px] truncate no-underline">
+                    📎 {t.archivoNombre || 'Documento'}
+                  </a>
+                )}
                 {t.responsable && (
                   <span className="text-[10px] font-black text-[#5A6270] bg-[#F4F6F8] px-2 py-[3px] rounded-full flex-shrink-0">{t.responsable}</span>
                 )}
