@@ -662,14 +662,20 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = MediaRecorder.isTypeSupported('audio/ogg;codecs=opus') ? 'audio/ogg;codecs=opus' : 'audio/webm;codecs=opus';
+      // WhatsApp solo acepta audio/ogg (opus), audio/mpeg, audio/amr,
+      // audio/mp4 o audio/aac — Chrome/Brave no graban directo a ogg vía
+      // MediaRecorder (eso es cosa de Firefox), así que hay que probar
+      // primero mp4 (sí soportado en Chrome moderno) antes de caer a
+      // webm, que WhatsApp rechaza siempre.
+      const CANDIDATOS = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus'];
+      const mimeType = CANDIDATOS.find(t => MediaRecorder.isTypeSupported(t)) ?? 'audio/webm';
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.includes('ogg') ? 'ogg' : 'webm';
+        const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
         const file = new File([blob], `nota-de-voz.${ext}`, { type: mimeType });
         setSendingVoice(true);
         try {
