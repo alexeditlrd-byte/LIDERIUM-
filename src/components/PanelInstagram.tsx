@@ -401,7 +401,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
 
       const { error: uploadError } = await supabase.storage
         .from('ig-media')
-        .uploadToSignedUrl(urlData.filePath, urlData.token, file);
+        .uploadToSignedUrl(urlData.filePath, urlData.token, file, { contentType: file.type });
       if (uploadError) throw uploadError;
 
       const attachmentType: 'image' | 'video' = file.type.startsWith('video') ? 'video' : 'image';

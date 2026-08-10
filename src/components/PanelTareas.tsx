@@ -51,7 +51,7 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
       });
       const urlData = await urlRes.json();
       if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
-      const { error: uploadError } = await supabase.storage.from('tareas-adjuntos').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+      const { error: uploadError } = await supabase.storage.from('tareas-adjuntos').uploadToSignedUrl(urlData.filePath, urlData.token, file, { contentType: file.type });
       if (uploadError) throw uploadError;
       setArchivo({ url: urlData.publicUrl, nombre: file.name });
     } catch (e) {

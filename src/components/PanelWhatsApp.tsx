@@ -627,7 +627,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     const urlData = await urlRes.json();
     if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
 
-    const { error: uploadError } = await supabase.storage.from('wa-media').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+    const { error: uploadError } = await supabase.storage.from('wa-media').uploadToSignedUrl(urlData.filePath, urlData.token, file, { contentType: file.type });
     if (uploadError) throw uploadError;
 
     const res = await fetch('/api/whatsapp/send', {

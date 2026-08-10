@@ -472,7 +472,7 @@ export default function Staff({ onLogout }: StaffProps) {
 
       const { error: uploadError } = await supabase.storage
         .from('guias')
-        .uploadToSignedUrl(urlData.filePath, urlData.token, guiaFile);
+        .uploadToSignedUrl(urlData.filePath, urlData.token, guiaFile, { contentType: guiaFile.type });
       if (uploadError) throw uploadError;
 
       // 2) Guarda el registro del documento ya subido.

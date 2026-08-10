@@ -188,7 +188,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       });
       const urlData = await urlRes.json();
       if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
-      const { error: uploadError } = await supabase.storage.from('recursos').uploadToSignedUrl(urlData.filePath, urlData.token, file);
+      const { error: uploadError } = await supabase.storage.from('recursos').uploadToSignedUrl(urlData.filePath, urlData.token, file, { contentType: file.type });
       if (uploadError) throw uploadError;
       setRecursoDraft(d => ({ ...d, url: urlData.publicUrl }));
       setRecursoFileName(file.name);
