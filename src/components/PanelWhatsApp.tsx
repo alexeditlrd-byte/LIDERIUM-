@@ -110,6 +110,7 @@ interface Message {
   mediaType: string | null;
   createdTime: string;
   status: string | null;
+  statusDetail: string | null;
 }
 
 // Sonido tipo WhatsApp cuando llega un mensaje entrante — sintetizado
@@ -140,10 +141,10 @@ function playIncomingSound() {
   }
 }
 
-function StatusTicks({ status }: { status: string | null }) {
+function StatusTicks({ status, statusDetail }: { status: string | null; statusDetail: string | null }) {
   if (status === 'read') return <span title="Leído" style={{ color: '#53BDEB' }}>✓✓</span>;
   if (status === 'delivered') return <span title="Entregado" style={{ color: '#AEB4BE' }}>✓✓</span>;
-  if (status === 'failed') return <span title="No se pudo entregar" style={{ color: '#D14343' }}>⚠</span>;
+  if (status === 'failed') return <span title={statusDetail || 'No se pudo entregar'} style={{ color: '#D14343' }}>⚠</span>;
   return <span title="Enviado" style={{ color: '#AEB4BE' }}>✓</span>;
 }
 
@@ -578,6 +579,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       mediaType: null,
       createdTime: new Date().toISOString(),
       status: 'sent',
+      statusDetail: null,
       ...partial,
     };
     setMessages(m => {
@@ -918,7 +920,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                           )}
                           {isMe && (
                             <div className={`text-[10px] font-bold text-right ${m.mediaUrl ? 'px-1.5 pt-1' : 'pt-1'}`}>
-                              <StatusTicks status={m.status} />
+                              <StatusTicks status={m.status} statusDetail={m.statusDetail} />
                             </div>
                           )}
                         </div>

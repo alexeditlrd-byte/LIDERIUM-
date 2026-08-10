@@ -27,7 +27,8 @@ interface WAMessage {
   sticker?: { id: string };
 }
 interface WAContact { wa_id: string; profile?: { name?: string } }
-interface WAStatus { id: string; status: string }
+interface WAStatusError { code?: number; title?: string; message?: string; error_data?: { details?: string } }
+interface WAStatus { id: string; status: string; errors?: WAStatusError[] }
 interface WAValue { messages?: WAMessage[]; contacts?: WAContact[]; statuses?: WAStatus[] }
 interface WAChange { value: WAValue }
 interface WAEntry { changes: WAChange[] }
@@ -98,7 +99,9 @@ export async function POST(req: NextRequest) {
           // mandamos — se enlazan con la fila guardada en /api/whatsapp/send
           // por el wa_message_id que Meta le puso a cada mensaje.
           for (const s of statuses) {
-            await supabaseAdmin.from('whatsapp_messages').update({ status: s.status }).eq('wa_message_id', s.id);
+            const err = s.errors?.[0];
+            const statusDetail = err ? (err.error_data?.details || err.title || err.message || `Código ${err.code}`) : null;
+            await supabaseAdmin.from('whatsapp_messages').update({ status: s.status, status_detail: statusDetail }).eq('wa_message_id', s.id);
           }
 
           for (const m of messages) {

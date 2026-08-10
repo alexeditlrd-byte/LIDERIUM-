@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     mediaType: m.media_type,
     createdTime: m.created_at,
     status: m.status ?? null,
+    statusDetail: m.status_detail ?? null,
   }));
   return NextResponse.json({ messages });
 }
