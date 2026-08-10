@@ -8,7 +8,10 @@ interface PanelTareasProps {
   showToast: (text: string, ok?: boolean) => void;
 }
 
-const RESPONSABLES = ['Winona', 'Maryori'];
+// Mismo roster completo del equipo que usa Staff.tsx para disponibilidad
+// (Terry/Santiago son los propietarios, Winona/Maryori las comerciales)
+// — no solo comerciales, cualquiera del equipo puede tener una tarea.
+const RESPONSABLES = ['Terry', 'Santiago', 'Winona', 'Maryori'];
 
 function todayISO() {
   const d = new Date();
