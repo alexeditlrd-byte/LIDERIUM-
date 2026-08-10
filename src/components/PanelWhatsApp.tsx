@@ -29,6 +29,44 @@ const VERTICALES = [
   { value: 'RESTAURANT', label: 'Restaurante' },
 ];
 
+// Códigos de país para el número de WhatsApp del modal "Nuevo chat" —
+// Perú primero (por defecto) y luego el resto de países donde el equipo
+// suele tener contactos.
+const COUNTRY_CODES = [
+  { id: 'PE', code: '51', flag: '🇵🇪', name: 'Perú' },
+  { id: 'US', code: '1', flag: '🇺🇸', name: 'Estados Unidos' },
+  { id: 'MX', code: '52', flag: '🇲🇽', name: 'México' },
+  { id: 'CO', code: '57', flag: '🇨🇴', name: 'Colombia' },
+  { id: 'AR', code: '54', flag: '🇦🇷', name: 'Argentina' },
+  { id: 'CL', code: '56', flag: '🇨🇱', name: 'Chile' },
+  { id: 'EC', code: '593', flag: '🇪🇨', name: 'Ecuador' },
+  { id: 'BO', code: '591', flag: '🇧🇴', name: 'Bolivia' },
+  { id: 'VE', code: '58', flag: '🇻🇪', name: 'Venezuela' },
+  { id: 'UY', code: '598', flag: '🇺🇾', name: 'Uruguay' },
+  { id: 'PY', code: '595', flag: '🇵🇾', name: 'Paraguay' },
+  { id: 'CR', code: '506', flag: '🇨🇷', name: 'Costa Rica' },
+  { id: 'PA', code: '507', flag: '🇵🇦', name: 'Panamá' },
+  { id: 'GT', code: '502', flag: '🇬🇹', name: 'Guatemala' },
+  { id: 'HN', code: '504', flag: '🇭🇳', name: 'Honduras' },
+  { id: 'SV', code: '503', flag: '🇸🇻', name: 'El Salvador' },
+  { id: 'NI', code: '505', flag: '🇳🇮', name: 'Nicaragua' },
+  { id: 'DO', code: '1', flag: '🇩🇴', name: 'Rep. Dominicana' },
+  { id: 'ES', code: '34', flag: '🇪🇸', name: 'España' },
+  { id: 'BR', code: '55', flag: '🇧🇷', name: 'Brasil' },
+];
+
+// Cuando el modal se abre prellenado con un número completo (ej. desde
+// el atajo de "ventana de 24h vencida"), separa el código de país del
+// resto — probando primero los códigos más largos para no confundir,
+// por ejemplo, Bolivia (591) con Perú (51).
+function splitPhone(full: string): { countryId: string; local: string } {
+  const digits = full.replace(/[^0-9]/g, '');
+  const sorted = [...COUNTRY_CODES].sort((a, b) => b.code.length - a.code.length);
+  const match = sorted.find(c => digits.startsWith(c.code));
+  if (match) return { countryId: match.id, local: digits.slice(match.code.length) };
+  return { countryId: 'PE', local: digits };
+}
+
 const RESPONSABLES_CHAT = ['Winona', 'Maryori'];
 const ESTADOS_CHAT = ['Pendiente', 'En seguimiento', 'Resuelto'];
 const ESTADO_CHAT_COLOR: Record<string, { bg: string; color: string }> = {
@@ -271,6 +309,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   // plantilla (con sus variables) en vez de dejar escribir cualquier cosa.
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [newChatDraft, setNewChatDraft] = useState({ nombre: '', phone: '' });
+  const [countryId, setCountryId] = useState('PE');
   const [templates, setTemplates] = useState<{ name: string; language: string; bodyText: string; variableCount: number; status: string }[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [templatesError, setTemplatesError] = useState('');
@@ -280,7 +319,14 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
 
   const openNewChatModal = (preset?: { nombre: string; phone: string }) => {
     setShowNewChatModal(true);
-    setNewChatDraft(preset ?? { nombre: '', phone: '' });
+    if (preset) {
+      const { countryId: presetCountryId, local } = splitPhone(preset.phone);
+      setCountryId(presetCountryId);
+      setNewChatDraft({ nombre: preset.nombre, phone: local });
+    } else {
+      setCountryId('PE');
+      setNewChatDraft({ nombre: '', phone: '' });
+    }
     setSelectedTemplateName('');
     setTemplateParams([]);
     setTemplatesError('');
@@ -323,7 +369,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     if (!selectedTemplate || selectedTemplate.status !== 'APPROVED' || !newChatDraft.phone.trim()) return;
     setSendingTemplate(true);
     try {
-      const phone = newChatDraft.phone.replace(/[^0-9]/g, '');
+      const dialCode = COUNTRY_CODES.find(c => c.id === countryId)?.code ?? '51';
+      const phone = (dialCode + newChatDraft.phone).replace(/[^0-9]/g, '');
       const text = previewTemplateText();
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
@@ -984,9 +1031,18 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
               </div>
               <div>
                 <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Número de WhatsApp</label>
-                <input value={newChatDraft.phone} onChange={e => setNewChatDraft(d => ({ ...d, phone: e.target.value }))}
-                  placeholder="51987654321"
-                  className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                <div className="flex gap-2">
+                  <Dropdown
+                    value={countryId}
+                    onChange={setCountryId}
+                    options={COUNTRY_CODES.map(c => ({ value: c.id, label: `${c.flag} +${c.code}` }))}
+                    listClassName="max-h-[240px]"
+                    className="h-[46px] px-3.5 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white flex-shrink-0"
+                  />
+                  <input value={newChatDraft.phone} onChange={e => setNewChatDraft(d => ({ ...d, phone: e.target.value }))}
+                    placeholder="987654321"
+                    className="flex-1 min-w-0 h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                </div>
               </div>
 
               {loadingTemplates ? (
