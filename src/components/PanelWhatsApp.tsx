@@ -62,6 +62,14 @@ interface Message {
   mediaUrl: string | null;
   mediaType: string | null;
   createdTime: string;
+  status: string | null;
+}
+
+function StatusTicks({ status }: { status: string | null }) {
+  if (status === 'read') return <span title="Leído" style={{ color: '#53BDEB' }}>✓✓</span>;
+  if (status === 'delivered') return <span title="Entregado" style={{ color: '#AEB4BE' }}>✓✓</span>;
+  if (status === 'failed') return <span title="No se pudo entregar" style={{ color: '#D14343' }}>⚠</span>;
+  return <span title="Enviado" style={{ color: '#AEB4BE' }}>✓</span>;
 }
 
 const URL_SPLIT_REGEX = /(https?:\/\/[^\s]+)/g;
@@ -139,6 +147,16 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const [soloNoLeidos, setSoloNoLeidos] = useState(false);
   const [responsableFilter, setResponsableFilter] = useState('Todos');
   const [estadoFilter, setEstadoFilter] = useState('Todos');
+
+  // Buscar dentro de los mensajes de la conversación abierta (no confundir
+  // con "search", que busca entre conversaciones en la lista de la izquierda).
+  const [showMessageSearch, setShowMessageSearch] = useState(false);
+  const [messageSearch, setMessageSearch] = useState('');
+
+  // Cuando falla un envío libre por estar fuera de la ventana de 24h,
+  // guarda el teléfono para el que pasó — así se puede ofrecer el atajo a
+  // "Nuevo chat con plantilla" directo para esa conversación.
+  const [windowExpiredPhone, setWindowExpiredPhone] = useState<string | null>(null);
 
   useEffect(() => {
     fetch('/api/chat-meta?canal=whatsapp').then(r => r.json()).then(d => setChatMeta(d.meta ?? {})).catch(() => {});
@@ -225,9 +243,9 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const [templateParams, setTemplateParams] = useState<string[]>([]);
   const [sendingTemplate, setSendingTemplate] = useState(false);
 
-  const openNewChatModal = () => {
+  const openNewChatModal = (preset?: { nombre: string; phone: string }) => {
     setShowNewChatModal(true);
-    setNewChatDraft({ nombre: '', phone: '' });
+    setNewChatDraft(preset ?? { nombre: '', phone: '' });
     setSelectedTemplateName('');
     setTemplateParams([]);
     setTemplatesError('');
@@ -362,8 +380,30 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     return () => { supabase.removeChannel(channel); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Ticks de entrega/lectura en vivo — Meta avisa el cambio de estado con
+  // un UPDATE sobre la misma fila que guardamos al enviar.
+  useEffect(() => {
+    const channel = supabase
+      .channel('whatsapp-message-status')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'whatsapp_messages' }, payload => {
+        const row = payload.new as { id?: string; phone?: string; status?: string };
+        if (!row.id || !row.phone) return;
+        setMessages(prev => {
+          if (!prev.some(m => m.id === row.id)) return prev;
+          const updated = prev.map(m => (m.id === row.id ? { ...m, status: row.status ?? m.status } : m));
+          messagesCache.current[row.phone!] = updated;
+          return updated;
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   const openConversation = (phone: string) => {
     setSelectedPhone(phone);
+    setShowMessageSearch(false);
+    setMessageSearch('');
+    setWindowExpiredPhone(null);
     const lastSeen = readLastSeen();
     lastSeen[phone] = new Date().toISOString();
     writeLastSeen(lastSeen);
@@ -405,6 +445,12 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     });
   }, [conversationsWithNames, chatMeta, search, responsableFilter, estadoFilter, soloNoLeidos, lastSeenMap]);
 
+  const visibleMessages = useMemo(() => {
+    const q = messageSearch.trim().toLowerCase();
+    if (!q) return messages;
+    return messages.filter(m => m.text.toLowerCase().includes(q));
+  }, [messages, messageSearch]);
+
   const pushLocalMessage = (partial: Partial<Message>) => {
     if (!selected) return;
     const newMsg: Message = {
@@ -414,6 +460,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       mediaUrl: null,
       mediaType: null,
       createdTime: new Date().toISOString(),
+      status: 'sent',
       ...partial,
     };
     setMessages(m => {
@@ -421,12 +468,18 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       messagesCache.current[selected.phone] = updated;
       return updated;
     });
+    // El mensaje optimista de arriba no tiene el id real de la fila en la
+    // base — sin eso, cuando llegue el status (entregado/leído) por
+    // webhook no hay cómo saber a cuál mensaje pertenece. Esta relectura
+    // en segundo plano lo reemplaza por la fila real ya guardada.
+    setTimeout(() => fetchAndCacheMessages(selected.phone), 1500);
   };
 
   const submitReply = async () => {
     const text = reply;
     if (!selected || !text.trim()) return;
     setSending(true);
+    setWindowExpiredPhone(null);
     try {
       const res = await fetch('/api/whatsapp/send', {
         method: 'POST',
@@ -438,7 +491,9 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       pushLocalMessage({ text });
       setReply('');
     } catch (e) {
-      showToast(e instanceof Error ? e.message : 'No se pudo enviar', false);
+      const msg = e instanceof Error ? e.message : 'No se pudo enviar';
+      if (/24h/i.test(msg)) setWindowExpiredPhone(selected.phone);
+      showToast(msg, false);
     }
     setSending(false);
   };
@@ -585,7 +640,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#F0F2F5]">
             <div className="font-grotesk font-bold text-[15px] text-[#15171C]">Conversaciones</div>
             <div className="flex items-center gap-2">
-              <button onClick={openNewChatModal} title="Nuevo chat" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
+              <button onClick={() => openNewChatModal()} title="Nuevo chat" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2]">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14" /></svg>
               </button>
               <button onClick={openProfileModal} title="Perfil del negocio" className="w-8 h-8 rounded-[9px] bg-[#F4F6F8] border-none cursor-pointer flex items-center justify-center text-[#5A6270] hover:bg-[#ECEEF2] text-[14px]">
@@ -676,6 +731,11 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                   <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{selected.phone}</div>
                 </div>
                 <div className="flex items-center gap-2">
+                  <button onClick={() => setShowMessageSearch(s => !s)} title="Buscar en la conversación"
+                    className="w-8 h-8 flex-shrink-0 rounded-[8px] border-none cursor-pointer flex items-center justify-center text-[#5A6270] transition"
+                    style={{ background: showMessageSearch ? '#EAF1F8' : '#F4F6F8' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.35-4.35" /></svg>
+                  </button>
                   <Dropdown value={chatMeta[selected.phone]?.responsable ?? ''} onChange={v => updateChatMeta(selected.phone, { responsable: v })}
                     options={[{ value: '', label: 'Sin asignar' }, ...RESPONSABLES_CHAT.map(r => ({ value: r, label: r }))]}
                     className="h-8 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" align="right" />
@@ -685,13 +745,30 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                     className="h-8 border-none rounded-[8px] px-2.5 text-[12px] font-black cursor-pointer outline-none" align="right" />
                 </div>
               </div>
+              {showMessageSearch && (
+                <div className="px-6 py-2.5 border-b border-[#F0F2F5] bg-[#FAFBFC]">
+                  <input
+                    autoFocus
+                    value={messageSearch}
+                    onChange={e => setMessageSearch(e.target.value)}
+                    placeholder="Buscar dentro de esta conversación…"
+                    className="w-full h-8 px-3 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel transition"
+                  />
+                  {messageSearch.trim() && (
+                    <div className="text-[11px] font-semibold text-[#9AA0A8] mt-1.5">{visibleMessages.length} resultado{visibleMessages.length === 1 ? '' : 's'}</div>
+                  )}
+                </div>
+              )}
               <ChatLeadCard lead={matchedLead} score={leadScore} creating={creatingLead} onCreateLead={handleCreateLeadFromChat} />
               <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-3 bg-[#FAFBFC]">
-                {messages.length === 0 ? (
-                  <div className="text-center text-[13px] text-[#8A929E] font-semibold">Sin mensajes.</div>
+                {visibleMessages.length === 0 ? (
+                  <div className="text-center text-[13px] text-[#8A929E] font-semibold">
+                    {messageSearch.trim() ? 'Sin resultados para esa búsqueda.' : 'Sin mensajes.'}
+                  </div>
                 ) : (
-                  messages.map(m => {
+                  visibleMessages.map(m => {
                     const isMe = m.direction === 'out';
+                    const isCaptionable = m.mediaType === 'image' || m.mediaType === 'video';
                     return (
                       <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[70%] ${m.mediaUrl ? 'p-1.5' : 'px-4 py-2.5'} whitespace-pre-wrap text-[13.5px] leading-[1.5] rounded-[14px]`}
@@ -718,6 +795,14 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                             linkify(m.text, isMe ? '#9fc3e3' : '#2E6CA0')
                           ) : (
                             <span className="italic" style={{ color: isMe ? '#AEB4BE' : '#9AA0A8' }}>📎 Contenido no disponible</span>
+                          )}
+                          {isCaptionable && m.text && (
+                            <div className="px-1.5 pt-1.5">{linkify(m.text, isMe ? '#9fc3e3' : '#2E6CA0')}</div>
+                          )}
+                          {isMe && (
+                            <div className={`text-[10px] font-bold text-right ${m.mediaUrl ? 'px-1.5 pt-1' : 'pt-1'}`}>
+                              <StatusTicks status={m.status} />
+                            </div>
                           )}
                         </div>
                       </div>
@@ -779,7 +864,19 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                     {sending ? 'Enviando…' : 'Enviar'}
                   </button>
                 </div>
-                <p className="text-[11.5px] text-[#9AA0A8] font-semibold mt-2">Solo se pueden mandar mensajes libres dentro de las 24h desde el último mensaje del cliente. Fuera de ese margen, WhatsApp exige una plantilla aprobada.</p>
+                {windowExpiredPhone === selected.phone ? (
+                  <div className="flex items-center justify-between gap-3 mt-2.5 px-3.5 py-2.5 bg-[#FBF1E2] border border-[#F0DCB0] rounded-[10px]">
+                    <span className="text-[11.5px] font-semibold text-[#8A5A0F]">Pasaron más de 24h desde su último mensaje — hay que reabrir con una plantilla aprobada.</span>
+                    <button
+                      onClick={() => openNewChatModal({ nombre: selected.resolvedName, phone: selected.phone })}
+                      className="shrink-0 bg-[#15171C] text-white text-[11.5px] font-bold px-3 py-[7px] rounded-[8px] border-none cursor-pointer hover:bg-steel transition"
+                    >
+                      Nuevo chat con plantilla
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11.5px] text-[#9AA0A8] font-semibold mt-2">Solo se pueden mandar mensajes libres dentro de las 24h desde el último mensaje del cliente. Fuera de ese margen, WhatsApp exige una plantilla aprobada.</p>
+                )}
               </div>
             </>
           )}

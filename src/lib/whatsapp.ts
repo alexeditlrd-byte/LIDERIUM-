@@ -24,7 +24,7 @@ function businessAccountId() {
   return id;
 }
 
-export async function sendText(to: string, text: string): Promise<void> {
+export async function sendText(to: string, text: string): Promise<string | null> {
   const url = `${GRAPH}/${phoneNumberId()}/messages`;
   const res = await fetch(url, {
     method: 'POST',
@@ -46,9 +46,10 @@ export async function sendText(to: string, text: string): Promise<void> {
     }
     throw new Error(msg);
   }
+  return data.messages?.[0]?.id ?? null;
 }
 
-export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'video' | 'document' | 'audio'): Promise<void> {
+export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'video' | 'document' | 'audio'): Promise<string | null> {
   const url = `${GRAPH}/${phoneNumberId()}/messages`;
   const res = await fetch(url, {
     method: 'POST',
@@ -62,6 +63,7 @@ export async function sendMedia(to: string, mediaUrl: string, type: 'image' | 'v
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudo enviar el archivo de WhatsApp');
+  return data.messages?.[0]?.id ?? null;
 }
 
 // Para escribirle primero a alguien que nunca te escribió, WhatsApp no
@@ -90,7 +92,7 @@ export async function getMessageTemplates(): Promise<MessageTemplate[]> {
     });
 }
 
-export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<void> {
+export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<string | null> {
   const components = params.length > 0
     ? [{ type: 'body', parameters: params.map(text => ({ type: 'text', text })) }]
     : [];
@@ -107,6 +109,7 @@ export async function sendTemplate(to: string, name: string, language: string, p
   });
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudo enviar la plantilla');
+  return data.messages?.[0]?.id ?? null;
 }
 
 // Perfil de negocio (lo que ve el cliente al abrir "Info. del contacto"

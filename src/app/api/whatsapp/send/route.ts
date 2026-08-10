@@ -11,25 +11,30 @@ export async function POST(req: NextRequest) {
   const tipo = MEDIA_TYPES.includes(mediaType) ? mediaType : 'document';
 
   try {
+    let waMessageId: string | null;
     if (templateName) {
-      await sendTemplate(phone, templateName, templateLanguage || 'es', templateParams ?? []);
+      waMessageId = await sendTemplate(phone, templateName, templateLanguage || 'es', templateParams ?? []);
     } else if (mediaUrl) {
-      await sendMedia(phone, mediaUrl, tipo);
+      waMessageId = await sendMedia(phone, mediaUrl, tipo);
     } else if (text?.trim()) {
-      await sendText(phone, text.trim());
+      waMessageId = await sendText(phone, text.trim());
     } else {
       return NextResponse.json({ error: 'Falta mensaje o archivo' }, { status: 400 });
     }
 
     // A diferencia de Instagram, Meta no nos avisa por webhook de los
     // mensajes que nosotros mandamos — hay que guardarlo a mano para que
-    // quede en el historial de la conversación.
+    // quede en el historial de la conversación. Guardamos también el id
+    // que Meta le puso al mensaje: es lo único que permite después
+    // enlazar los webhooks de "entregado/leído" con esta fila exacta.
     await supabaseAdmin.from('whatsapp_messages').insert({
+      wa_message_id: waMessageId,
       phone,
       direction: 'out',
       text: text?.trim() ?? '',
       media_url: mediaUrl ?? null,
       media_type: mediaUrl ? tipo : null,
+      status: 'sent',
     });
 
     return NextResponse.json({ success: true });
