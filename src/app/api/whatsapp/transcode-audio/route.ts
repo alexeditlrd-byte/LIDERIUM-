@@ -13,13 +13,22 @@ export const maxDuration = 30;
 // ffmpeg-static calcula su ruta al binario usando el directorio donde se
 // instaló el paquete — en Vercel eso pasa durante el build (ej.
 // /ROOT/node_modules/...), pero la función corre después desde otra
-// carpeta (/var/task/...), así que esa ruta ya no existe ahí. Hay que
-// recalcularla relativo al directorio real en el momento de ejecutar.
+// carpeta (/var/task/...), así que hay que recalcularla contra el
+// directorio real. Además esa carpeta es de solo lectura en producción,
+// así que el binario hay que copiarlo a /tmp (lo único con permiso de
+// escritura) y darle ahí el permiso de ejecución antes de poder correrlo.
 function resolveFfmpegPath(): string {
-  if (ffmpegStaticPath && fsSync.existsSync(ffmpegStaticPath)) return ffmpegStaticPath;
-  const fallback = path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg');
-  if (fsSync.existsSync(fallback)) return fallback;
-  throw new Error('No se encontró el binario de ffmpeg');
+  const source = ffmpegStaticPath && fsSync.existsSync(ffmpegStaticPath)
+    ? ffmpegStaticPath
+    : path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg');
+  if (!fsSync.existsSync(source)) throw new Error('No se encontró el binario de ffmpeg en el paquete');
+
+  const runnablePath = path.join(os.tmpdir(), 'ffmpeg-liderium');
+  if (!fsSync.existsSync(runnablePath)) {
+    fsSync.copyFileSync(source, runnablePath);
+  }
+  fsSync.chmodSync(runnablePath, 0o755);
+  return runnablePath;
 }
 
 // Chrome/Brave graban notas de voz en un contenedor mp4 o webm, pero con
@@ -33,15 +42,12 @@ export async function POST(req: NextRequest) {
   const inputBuffer = Buffer.from(await req.arrayBuffer());
   if (inputBuffer.length === 0) return NextResponse.json({ error: 'Audio vacío' }, { status: 400 });
 
-  const resolvedFfmpegPath = resolveFfmpegPath();
-  fsSync.chmodSync(resolvedFfmpegPath, 0o755);
-  ffmpeg.setFfmpegPath(resolvedFfmpegPath);
-
   const tmpDir = os.tmpdir();
   const inputPath = path.join(tmpDir, `wa-voice-in-${Date.now()}`);
   const outputPath = path.join(tmpDir, `wa-voice-out-${Date.now()}.mp3`);
 
   try {
+    ffmpeg.setFfmpegPath(resolveFfmpegPath());
     await fs.writeFile(inputPath, inputBuffer);
 
     await new Promise<void>((resolve, reject) => {
