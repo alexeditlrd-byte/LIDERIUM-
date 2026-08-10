@@ -27,5 +27,12 @@ export async function GET(req: NextRequest) {
     }
   } catch { /* ignore */ }
 
-  return NextResponse.json({ ffmpegPath, exists, stat, dirListing, dirError, cwd: process.cwd() });
+  const altPath = path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg');
+  const altExists = fs.existsSync(altPath);
+  let altDirListing: string[] = [];
+  try {
+    altDirListing = fs.readdirSync(path.join(process.cwd(), 'node_modules', 'ffmpeg-static'));
+  } catch { /* ignore */ }
+
+  return NextResponse.json({ ffmpegPath, exists, stat, dirListing, dirError, cwd: process.cwd(), altPath, altExists, altDirListing });
 }
