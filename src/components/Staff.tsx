@@ -165,6 +165,9 @@ export default function Staff({ onLogout }: StaffProps) {
   const [dbClients, setDbClients] = useState<any[]>([]);
 
   const [isFounder, setIsFounder] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -173,8 +176,35 @@ export default function Staff({ onLogout }: StaffProps) {
       setStaffName(`${name} · Liderium`);
       setStaffInitials(name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase());
       setIsFounder(user.user_metadata?.founder === true);
+      setAvatarUrl(user.user_metadata?.avatar_url ?? '');
     });
   }, []);
+
+  const handleAvatarSelect = async (file: File | null) => {
+    if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const urlRes = await fetch('/api/mi-perfil/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name }),
+      });
+      const urlData = await urlRes.json();
+      if (!urlRes.ok) throw new Error(urlData.error ?? 'No se pudo preparar la subida');
+
+      const { error: uploadError } = await supabase.storage.from('perfiles').uploadToSignedUrl(urlData.filePath, urlData.token, file, { contentType: file.type });
+      if (uploadError) throw uploadError;
+
+      const { error: updateError } = await supabase.auth.updateUser({ data: { avatar_url: urlData.publicUrl } });
+      if (updateError) throw updateError;
+
+      setAvatarUrl(urlData.publicUrl);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo subir la foto', false);
+    }
+    setUploadingAvatar(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', plan: 'Crecimiento' });
   const [genPass, setGenPass] = useState('');
@@ -695,7 +725,27 @@ export default function Staff({ onLogout }: StaffProps) {
 
         <div className="pt-[18px] border-t border-[#262A33]">
           <div className="flex items-center gap-3 px-2.5 py-2 mb-2">
-            <div className="w-[38px] h-[38px] rounded-[11px] bg-gradient-to-br from-[#15171C] to-[#2E6CA0] border border-[#333944] flex items-center justify-center font-black text-sm text-white flex-shrink-0">{staffInitials}</div>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={e => handleAvatarSelect(e.target.files?.[0] ?? null)} />
+            <button
+              onClick={() => avatarInputRef.current?.click()}
+              disabled={uploadingAvatar}
+              title="Cambiar foto de perfil"
+              className="relative w-[38px] h-[38px] rounded-[11px] bg-gradient-to-br from-[#15171C] to-[#2E6CA0] border border-[#333944] flex items-center justify-center font-black text-sm text-white flex-shrink-0 cursor-pointer p-0 overflow-hidden group disabled:opacity-70"
+            >
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                staffInitials
+              )}
+              <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                {uploadingAvatar ? (
+                  <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" /><circle cx="12" cy="13" r="4" /></svg>
+                )}
+              </span>
+            </button>
             <div className="text-[13.5px] leading-tight">
               <div className="font-bold">{staffName}</div>
               <div className="text-[#7E8693] text-xs">Administrador</div>
