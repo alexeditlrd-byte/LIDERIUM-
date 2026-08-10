@@ -23,22 +23,57 @@ interface WAMessage {
   image?: { id: string; caption?: string };
   video?: { id: string; caption?: string };
   document?: { id: string; caption?: string; filename?: string };
+  audio?: { id: string };
+  sticker?: { id: string };
 }
 interface WAContact { wa_id: string; profile?: { name?: string } }
 interface WAValue { messages?: WAMessage[]; contacts?: WAContact[] }
 interface WAChange { value: WAValue }
 interface WAEntry { changes: WAChange[] }
 
-// Mensajes de foto/video/documento no traen una URL directa — hay que
-// pedirle a Meta la URL temporal del archivo con su media id.
-async function resolveMediaUrl(mediaId: string): Promise<string | null> {
+const EXT_BY_MIME: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+  'video/mp4': 'mp4', 'video/3gpp': '3gp',
+  'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/amr': 'amr',
+  'application/pdf': 'pdf',
+};
+
+function safeFileName(name: string) {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9.\-_]/g, '_');
+}
+
+// El link que Meta devuelve para un adjunto entrante exige el token de
+// acceso para descargarse y expira en minutos — el navegador del panel
+// no puede mostrarlo directo. Hay que bajarlo del lado del servidor (con
+// el token) y resubirlo a nuestro storage público (mismo bucket que ya
+// usan los archivos salientes) para que quede viendo siempre, como en
+// WhatsApp Web.
+async function rehostMedia(mediaId: string, suggestedName?: string): Promise<string | null> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN;
   try {
-    const token = process.env.WHATSAPP_ACCESS_TOKEN;
-    const res = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
+    const metaRes = await fetch(`https://graph.facebook.com/v21.0/${mediaId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const data = await res.json();
-    return data.url ?? null;
+    const meta = await metaRes.json();
+    if (!meta.url) return null;
+
+    const fileRes = await fetch(meta.url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!fileRes.ok) return null;
+    const buffer = Buffer.from(await fileRes.arrayBuffer());
+
+    const ext = EXT_BY_MIME[meta.mime_type] ?? '';
+    const name = suggestedName ? safeFileName(suggestedName) : `${mediaId}${ext ? `.${ext}` : ''}`;
+    const filePath = `in_${Date.now()}_${name}`;
+
+    await supabaseAdmin.storage.createBucket('wa-media', { public: true, fileSizeLimit: '50MB' }).catch(() => {});
+    const { error } = await supabaseAdmin.storage.from('wa-media').upload(filePath, buffer, {
+      contentType: meta.mime_type || 'application/octet-stream',
+      upsert: true,
+    });
+    if (error) return null;
+
+    const { data } = supabaseAdmin.storage.from('wa-media').getPublicUrl(filePath);
+    return data.publicUrl;
   } catch {
     return null;
   }
@@ -64,16 +99,22 @@ export async function POST(req: NextRequest) {
 
             if (m.type === 'image' && m.image) {
               mediaType = 'image';
-              mediaUrl = await resolveMediaUrl(m.image.id);
+              mediaUrl = await rehostMedia(m.image.id);
               if (m.image.caption) text = m.image.caption;
             } else if (m.type === 'video' && m.video) {
               mediaType = 'video';
-              mediaUrl = await resolveMediaUrl(m.video.id);
+              mediaUrl = await rehostMedia(m.video.id);
               if (m.video.caption) text = m.video.caption;
             } else if (m.type === 'document' && m.document) {
               mediaType = 'document';
-              mediaUrl = await resolveMediaUrl(m.document.id);
+              mediaUrl = await rehostMedia(m.document.id, m.document.filename);
               text = m.document.filename ?? text;
+            } else if (m.type === 'audio' && m.audio) {
+              mediaType = 'audio';
+              mediaUrl = await rehostMedia(m.audio.id);
+            } else if (m.type === 'sticker' && m.sticker) {
+              mediaType = 'image';
+              mediaUrl = await rehostMedia(m.sticker.id);
             }
 
             await supabaseAdmin.from('whatsapp_messages').insert({

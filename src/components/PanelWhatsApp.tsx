@@ -64,6 +64,23 @@ interface Message {
   createdTime: string;
 }
 
+const URL_SPLIT_REGEX = /(https?:\/\/[^\s]+)/g;
+
+// Convierte los links sueltos dentro de un mensaje de texto en <a> clicables
+// — split() con un grupo de captura deja el texto en índices pares y el
+// link capturado en los impares, así que no hace falta volver a testear.
+function linkify(text: string, color: string) {
+  return text.split(URL_SPLIT_REGEX).map((part, i) =>
+    i % 2 === 1 ? (
+      <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="underline break-all" style={{ color }}>
+        {part}
+      </a>
+    ) : (
+      part
+    )
+  );
+}
+
 function timeAgo(iso: string) {
   const d = new Date(iso);
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
@@ -697,7 +714,9 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                                 📎 {m.text || 'Ver documento'}
                               </a>
                             )
-                          ) : m.text ? m.text : (
+                          ) : m.text ? (
+                            linkify(m.text, isMe ? '#9fc3e3' : '#2E6CA0')
+                          ) : (
                             <span className="italic" style={{ color: isMe ? '#AEB4BE' : '#9AA0A8' }}>📎 Contenido no disponible</span>
                           )}
                         </div>
