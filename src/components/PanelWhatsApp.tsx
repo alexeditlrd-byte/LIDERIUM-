@@ -130,6 +130,32 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   const [uploadingFile, setUploadingFile] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
+  const [quickReplies, setQuickReplies] = useState<{ id: string; texto: string }[]>([]);
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
+  const [newQuickReply, setNewQuickReply] = useState('');
+
+  useEffect(() => {
+    fetch('/api/whatsapp/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
+  }, []);
+
+  const addQuickReply = async () => {
+    if (!newQuickReply.trim()) return;
+    const res = await fetch('/api/whatsapp/quick-replies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto: newQuickReply.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showToast(data.error ?? 'No se pudo guardar', false); return; }
+    setQuickReplies(q => [...q, data.reply]);
+    setNewQuickReply('');
+  };
+
+  const deleteQuickReply = async (id: string) => {
+    setQuickReplies(q => q.filter(r => r.id !== id));
+    await fetch(`/api/whatsapp/quick-replies?id=${id}`, { method: 'DELETE' }).catch(() => {});
+  };
+
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
@@ -418,6 +444,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     setShowMessageSearch(false);
     setMessageSearch('');
     setWindowExpiredPhone(null);
+    setShowQuickReplies(false);
     const lastSeen = readLastSeen();
     lastSeen[phone] = new Date().toISOString();
     writeLastSeen(lastSeen);
@@ -489,8 +516,8 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     setTimeout(() => fetchAndCacheMessages(selected.phone), 1500);
   };
 
-  const submitReply = async () => {
-    const text = reply;
+  const submitReply = async (override?: string) => {
+    const text = override ?? reply;
     if (!selected || !text.trim()) return;
     setSending(true);
     setWindowExpiredPhone(null);
@@ -503,7 +530,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       pushLocalMessage({ text });
-      setReply('');
+      if (override === undefined) setReply('');
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'No se pudo enviar';
       if (/24h/i.test(msg)) setWindowExpiredPhone(selected.phone);
@@ -826,6 +853,39 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                 <div ref={messagesEndRef} />
               </div>
               <div className="relative px-6 py-4 border-t border-[#F0F2F5]">
+                {showQuickReplies && (
+                  <div className="absolute bottom-full left-6 mb-2 w-[320px] max-h-[280px] overflow-y-auto bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
+                    <div className="text-[12px] font-bold text-[#5A6270] mb-2">Respuestas rápidas</div>
+                    {quickReplies.length === 0 && (
+                      <div className="text-[12.5px] text-[#9AA0A8] font-semibold mb-2">Todavía no agregas ninguna.</div>
+                    )}
+                    <div className="flex flex-col gap-1.5 mb-3">
+                      {quickReplies.map(qr => (
+                        <div key={qr.id} className="flex items-center gap-1.5 group">
+                          <button
+                            onClick={() => { submitReply(qr.texto); setShowQuickReplies(false); }}
+                            className="flex-1 text-left px-3 py-2 bg-[#F4F6F8] hover:bg-[#EAF1F8] rounded-[9px] text-[12.5px] font-medium text-[#15171C] border-none cursor-pointer truncate">
+                            {qr.texto}
+                          </button>
+                          <button onClick={() => deleteQuickReply(qr.id)} title="Eliminar"
+                            className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-transparent border-none text-[#C2C8D2] hover:text-[#D14343] hover:bg-[#FBEAEA] cursor-pointer text-[13px] font-bold">
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-1.5 border-t border-[#F0F2F5] pt-2.5">
+                      <input value={newQuickReply} onChange={e => setNewQuickReply(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') addQuickReply(); }}
+                        placeholder="Nueva respuesta rápida…"
+                        className="flex-1 h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                      <button onClick={addQuickReply} disabled={!newQuickReply.trim()}
+                        className="h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
+                        Agregar
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {showEmojiPicker && (
                   <div className="absolute bottom-full left-6 mb-2 w-[280px] bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
                     <div className="grid grid-cols-8 gap-1">
@@ -865,6 +925,11 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><path d="M12 19v4M8 23h8" /></svg>
                     )}
                   </button>
+                  <button onClick={() => setShowQuickReplies(s => !s)} title="Respuestas rápidas"
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition"
+                    style={{ background: showQuickReplies ? '#EAF1F8' : '#F4F6F8', color: showQuickReplies ? '#2E6CA0' : '#5A6270' }}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                  </button>
                   <input
                     value={reply}
                     onChange={e => setReply(e.target.value)}
@@ -873,7 +938,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                     disabled={recording}
                     className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition disabled:opacity-60"
                   />
-                  <button onClick={submitReply} disabled={sending || !reply.trim()}
+                  <button onClick={() => submitReply()} disabled={sending || !reply.trim()}
                     className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">
                     {sending ? 'Enviando…' : 'Enviar'}
                   </button>
