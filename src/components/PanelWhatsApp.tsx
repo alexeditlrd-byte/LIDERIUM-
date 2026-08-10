@@ -37,6 +37,15 @@ const ESTADO_CHAT_COLOR: Record<string, { bg: string; color: string }> = {
   'Resuelto': { bg: '#EAF7F1', color: '#1F9B6E' },
 };
 
+// Estado de aprobación de una plantilla en Meta — se muestra en el modal
+// "Nuevo chat" para no tener que ir a revisar WhatsApp Manager aparte.
+const TEMPLATE_STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  APPROVED: { label: 'Aprobada', color: '#1F9B6E', bg: '#EAF7F1' },
+  PENDING: { label: 'En revisión', color: '#B5740F', bg: '#FBF1E2' },
+  REJECTED: { label: 'Rechazada', color: '#D14343', bg: '#FCEDED' },
+};
+const templateStatusMeta = (status: string) => TEMPLATE_STATUS_META[status] ?? { label: status, color: '#5A6270', bg: '#F4F6F8' };
+
 const EMOJIS = [
   '😀', '😁', '😂', '🤣', '😊', '🙂', '😉', '😍', '😘', '🥰',
   '😎', '🤩', '🥳', '😇', '🤗', '🤔', '😅', '😢', '😭', '😮',
@@ -236,7 +245,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   // plantilla (con sus variables) en vez de dejar escribir cualquier cosa.
   const [showNewChatModal, setShowNewChatModal] = useState(false);
   const [newChatDraft, setNewChatDraft] = useState({ nombre: '', phone: '' });
-  const [templates, setTemplates] = useState<{ name: string; language: string; bodyText: string; variableCount: number }[]>([]);
+  const [templates, setTemplates] = useState<{ name: string; language: string; bodyText: string; variableCount: number; status: string }[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
   const [templatesError, setTemplatesError] = useState('');
   const [selectedTemplateName, setSelectedTemplateName] = useState('');
@@ -254,10 +263,15 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       .then(r => r.json())
       .then(d => {
         if (d.error) { setTemplatesError(d.error); return; }
-        setTemplates(d.templates ?? []);
-        if (d.templates?.[0]) {
-          setSelectedTemplateName(d.templates[0].name);
-          setTemplateParams(new Array(d.templates[0].variableCount).fill(''));
+        const list = d.templates ?? [];
+        setTemplates(list);
+        // Preferir una ya aprobada para que quede lista para enviar de
+        // una — si no hay ninguna, igual mostrar la primera (pendiente o
+        // rechazada) para que se vea su estado en vez de una lista vacía.
+        const defaultTpl = list.find((t: { status: string }) => t.status === 'APPROVED') ?? list[0];
+        if (defaultTpl) {
+          setSelectedTemplateName(defaultTpl.name);
+          setTemplateParams(new Array(defaultTpl.variableCount).fill(''));
         }
       })
       .catch(() => setTemplatesError('No se pudieron cargar las plantillas'))
@@ -280,7 +294,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
   };
 
   const sendNewChat = async () => {
-    if (!selectedTemplate || !newChatDraft.phone.trim()) return;
+    if (!selectedTemplate || selectedTemplate.status !== 'APPROVED' || !newChatDraft.phone.trim()) return;
     setSendingTemplate(true);
     try {
       const phone = newChatDraft.phone.replace(/[^0-9]/g, '');
@@ -916,15 +930,29 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
                 <div className="bg-[#FCEDED] border border-[#F3C9C9] rounded-[12px] px-4 py-3 text-[12.5px] text-[#B4232F] font-semibold">{templatesError}</div>
               ) : templates.length === 0 ? (
                 <div className="bg-[#FBF1E2] border border-[#F0D9A8] rounded-[12px] px-4 py-3 text-[12.5px] text-[#8A6020] font-semibold">
-                  Todavía no tienes ninguna plantilla aprobada por Meta. Tienes que crear una en el WhatsApp Manager y esperar su aprobación antes de poder escribirle primero a un contacto nuevo.
+                  Todavía no tienes ninguna plantilla creada. Tienes que crear una en el WhatsApp Manager y esperar su aprobación antes de poder escribirle primero a un contacto nuevo.
                 </div>
               ) : (
                 <>
                   <div>
                     <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Plantilla</label>
                     <Dropdown className="w-full h-[46px] px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[14.5px] font-medium outline-none text-[#15171C] focus:border-steel transition bg-white"
-                      value={selectedTemplateName} onChange={pickTemplate} options={templates.map(t => ({ value: t.name, label: t.name }))} />
+                      value={selectedTemplateName} onChange={pickTemplate}
+                      options={templates.map(t => ({ value: t.name, label: t.status === 'APPROVED' ? t.name : `${t.name} — ${templateStatusMeta(t.status).label}` }))} />
                   </div>
+                  {selectedTemplate && (
+                    <div className="inline-flex self-start items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-black"
+                      style={{ background: templateStatusMeta(selectedTemplate.status).bg, color: templateStatusMeta(selectedTemplate.status).color }}>
+                      {templateStatusMeta(selectedTemplate.status).label}
+                    </div>
+                  )}
+                  {selectedTemplate && selectedTemplate.status !== 'APPROVED' && (
+                    <div className="bg-[#FBF1E2] border border-[#F0D9A8] rounded-[12px] px-4 py-3 text-[12.5px] text-[#8A6020] font-semibold">
+                      {selectedTemplate.status === 'PENDING'
+                        ? 'Esta plantilla todavía está en revisión de Meta — no se puede usar para enviar hasta que se apruebe.'
+                        : 'Meta rechazó esta plantilla — hay que corregirla o crear una nueva en el WhatsApp Manager.'}
+                    </div>
+                  )}
                   {templateParams.map((val, i) => (
                     <div key={i}>
                       <label className="block text-[13px] font-bold text-[#5A6270] mb-[7px]">Variable {`{{${i + 1}}}`}</label>
@@ -944,9 +972,9 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
             {templates.length > 0 && (
               <div className="flex gap-3 px-7 pb-7">
                 <button onClick={() => setShowNewChatModal(false)} className="flex-1 h-11 bg-[#F4F6F8] text-[#15171C] border border-[#E2E5EA] rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-[#ECEEF2] transition">Cancelar</button>
-                <button onClick={sendNewChat} disabled={sendingTemplate || !newChatDraft.phone.trim() || !selectedTemplate}
+                <button onClick={sendNewChat} disabled={sendingTemplate || !newChatDraft.phone.trim() || !selectedTemplate || selectedTemplate.status !== 'APPROVED'}
                   className="flex-1 h-11 bg-[#15171C] text-white border-none rounded-[12px] font-bold text-[14px] cursor-pointer hover:bg-steel transition disabled:opacity-60 disabled:cursor-not-allowed">
-                  {sendingTemplate ? 'Enviando…' : 'Enviar y crear chat'}
+                  {sendingTemplate ? 'Enviando…' : selectedTemplate && selectedTemplate.status !== 'APPROVED' ? 'Plantilla no disponible' : 'Enviar y crear chat'}
                 </button>
               </div>
             )}

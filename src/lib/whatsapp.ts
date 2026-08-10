@@ -75,6 +75,10 @@ export interface MessageTemplate {
   language: string;
   bodyText: string;
   variableCount: number;
+  // 'APPROVED' | 'PENDING' | 'REJECTED' | otros estados de Meta — se
+  // incluyen las no aprobadas también para poder avisar en el panel que
+  // hay una en camino, en vez de que simplemente no aparezca en ningún lado.
+  status: string;
 }
 
 export async function getMessageTemplates(): Promise<MessageTemplate[]> {
@@ -83,13 +87,11 @@ export async function getMessageTemplates(): Promise<MessageTemplate[]> {
   const data = await res.json();
   if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudieron leer las plantillas');
   interface RawTemplate { name: string; status: string; language: string; components?: { type: string; text?: string }[] }
-  return ((data.data ?? []) as RawTemplate[])
-    .filter(t => t.status === 'APPROVED')
-    .map(t => {
-      const bodyText = t.components?.find(c => c.type === 'BODY')?.text ?? '';
-      const variableCount = (bodyText.match(/\{\{\d+\}\}/g) ?? []).length;
-      return { name: t.name, language: t.language, bodyText, variableCount };
-    });
+  return ((data.data ?? []) as RawTemplate[]).map(t => {
+    const bodyText = t.components?.find(c => c.type === 'BODY')?.text ?? '';
+    const variableCount = (bodyText.match(/\{\{\d+\}\}/g) ?? []).length;
+    return { name: t.name, language: t.language, bodyText, variableCount, status: t.status };
+  });
 }
 
 export async function sendTemplate(to: string, name: string, language: string, params: string[]): Promise<string | null> {
