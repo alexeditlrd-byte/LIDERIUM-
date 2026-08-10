@@ -137,13 +137,14 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
   return (
     <div>
       <div className="bg-white border border-[#ECEEF2] rounded-[20px] px-5 py-5 mb-5">
-        <div className="flex flex-col sm:flex-row gap-2.5">
-          <input
+        <div className="flex flex-col sm:flex-row sm:items-start gap-2.5">
+          <textarea
             value={titulo}
             onChange={e => setTitulo(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') crearTarea(); }}
-            placeholder="Nueva tarea…"
-            className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
+            onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) crearTarea(); }}
+            placeholder="Nueva tarea… (Enter para salto de línea, Ctrl+Enter para agregar)"
+            rows={2}
+            className="flex-1 py-2.5 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition resize-none"
           />
           <Dropdown value={responsable} onChange={setResponsable}
             options={[{ value: '', label: 'Sin asignar' }, ...RESPONSABLES.map(r => ({ value: r, label: r }))]}
@@ -204,11 +205,11 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
           {visibles.map(t => {
             const vencida = !t.completada && !!t.fechaLimite && t.fechaLimite < todayISO();
             return (
-              <div key={t.id} className="flex items-center gap-3 px-5 py-3.5">
+              <div key={t.id} className="flex items-start gap-3 px-5 py-3.5">
                 <button
                   onClick={() => toggleCompletada(t)}
                   title={t.completada ? 'Marcar como pendiente' : 'Marcar como hecha'}
-                  className="w-[22px] h-[22px] flex-shrink-0 rounded-[7px] border-[1.5px] cursor-pointer flex items-center justify-center transition"
+                  className="w-[22px] h-[22px] mt-0.5 flex-shrink-0 rounded-[7px] border-[1.5px] cursor-pointer flex items-center justify-center transition"
                   style={{ background: t.completada ? '#1F9B6E' : '#fff', borderColor: t.completada ? '#1F9B6E' : '#D8DCE3' }}
                 >
                   {t.completada && (
@@ -216,19 +217,19 @@ export default function PanelTareas({ showToast }: PanelTareasProps) {
                   )}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <div className={`text-[13.5px] font-semibold truncate ${t.completada ? 'line-through text-[#AEB4BE]' : 'text-[#15171C]'}`}>{t.titulo}</div>
+                  <div className={`text-[13.5px] font-semibold whitespace-pre-wrap ${t.completada ? 'line-through text-[#AEB4BE]' : 'text-[#15171C]'}`}>{t.titulo}</div>
                 </div>
                 {t.archivoUrl && (
                   <a href={t.archivoUrl} target="_blank" rel="noopener noreferrer" title={t.archivoNombre || 'Ver documento'}
-                    className="flex-shrink-0 text-[11.5px] font-bold text-[#2E6CA0] bg-[#EAF1F8] hover:bg-[#DCEAF6] px-2 py-[3px] rounded-full max-w-[140px] truncate no-underline">
+                    className="flex-shrink-0 mt-0.5 text-[11.5px] font-bold text-[#2E6CA0] bg-[#EAF1F8] hover:bg-[#DCEAF6] px-2 py-[3px] rounded-full max-w-[140px] truncate no-underline">
                     📎 {t.archivoNombre || 'Documento'}
                   </a>
                 )}
                 {t.responsable && (
-                  <span className="text-[10px] font-black text-[#5A6270] bg-[#F4F6F8] px-2 py-[3px] rounded-full flex-shrink-0">{t.responsable}</span>
+                  <span className="text-[10px] font-black text-[#5A6270] bg-[#F4F6F8] px-2 py-[3px] mt-0.5 rounded-full flex-shrink-0">{t.responsable}</span>
                 )}
                 {t.fechaLimite && (
-                  <span className="text-[10.5px] font-bold px-2 py-[3px] rounded-full flex-shrink-0" style={{ background: vencida ? '#FCEDED' : '#F4F6F8', color: vencida ? '#D14343' : '#8A929E' }}>
+                  <span className="text-[10.5px] font-bold px-2 py-[3px] mt-0.5 rounded-full flex-shrink-0" style={{ background: vencida ? '#FCEDED' : '#F4F6F8', color: vencida ? '#D14343' : '#8A929E' }}>
                     {vencida ? '⚠ ' : ''}{fechaLabel(t.fechaLimite)}
                   </span>
                 )}
