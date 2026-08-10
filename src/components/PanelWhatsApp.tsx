@@ -662,24 +662,32 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // WhatsApp solo acepta audio/ogg (opus), audio/mpeg, audio/amr,
-      // audio/mp4 o audio/aac — Chrome/Brave no graban directo a ogg vía
-      // MediaRecorder (eso es cosa de Firefox), así que hay que probar
-      // primero mp4 (sí soportado en Chrome moderno) antes de caer a
-      // webm, que WhatsApp rechaza siempre.
-      const CANDIDATOS = ['audio/mp4', 'audio/ogg;codecs=opus', 'audio/webm;codecs=opus'];
-      const mimeType = CANDIDATOS.find(t => MediaRecorder.isTypeSupported(t)) ?? 'audio/webm';
+      // No hace falta que el navegador grabe en un formato que WhatsApp
+      // acepte — igual lo convierte el servidor a mp3 antes de mandarlo
+      // (ver /api/whatsapp/transcode-audio), porque aunque Chrome/Brave
+      // digan que graban en mp4, adentro va códec Opus, no AAC, y Meta lo
+      // rechaza igual. Acá solo se usa lo que el navegador grabe mejor.
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
       const recorder = new MediaRecorder(stream, { mimeType });
       audioChunksRef.current = [];
       recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
       recorder.onstop = async () => {
         stream.getTracks().forEach(t => t.stop());
         const blob = new Blob(audioChunksRef.current, { type: mimeType });
-        const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-        const file = new File([blob], `nota-de-voz.${ext}`, { type: mimeType });
         setSendingVoice(true);
         try {
-          await uploadAndSend(file, 'audio');
+          if (!selected) throw new Error('Selecciona una conversación');
+          const transcodeRes = await fetch('/api/whatsapp/transcode-audio', { method: 'POST', body: blob });
+          const transcodeData = await transcodeRes.json();
+          if (!transcodeRes.ok) throw new Error(transcodeData.error ?? 'No se pudo convertir el audio');
+          const res = await fetch('/api/whatsapp/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone: selected.phone, mediaUrl: transcodeData.publicUrl, mediaType: 'audio' }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          pushLocalMessage({ mediaUrl: transcodeData.publicUrl, mediaType: 'audio' });
         } catch (e) {
           showToast(e instanceof Error ? e.message : 'No se pudo enviar la nota de voz', false);
         }
