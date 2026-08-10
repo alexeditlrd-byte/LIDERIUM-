@@ -686,32 +686,33 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 </div>
                 <span className="text-[11px] font-bold text-[#9AA0A8]">{col.leads.length}</span>
               </div>
-              <div className="flex flex-col gap-[10px] p-3">
+              <div className="flex flex-col gap-[7px] p-2.5 max-h-[560px] overflow-y-auto">
                 {col.leads.map(lead => (
                   <div key={lead.id} draggable
                     onDragStart={e => { e.dataTransfer.setData('text/plain', lead.id); e.dataTransfer.effectAllowed = 'move'; setDraggedLeadId(lead.id); }}
                     onDragEnd={() => { setDraggedLeadId(null); setDragOverEstado(null); }}
                     onClick={() => setSelectedId(lead.id)}
-                    className={`bg-[#FAFBFC] border border-[#F0F2F5] rounded-[12px] p-3 cursor-grab active:cursor-grabbing hover:border-steel transition ${draggedLeadId === lead.id ? 'opacity-40' : ''}`}>
-                    <div className="flex justify-between items-start gap-2">
+                    className={`bg-[#FAFBFC] border border-[#F0F2F5] rounded-[10px] px-2.5 py-2 cursor-grab active:cursor-grabbing hover:border-steel transition ${draggedLeadId === lead.id ? 'opacity-40' : ''}`}>
+                    <div className="flex justify-between items-center gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <div className="text-[13px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
+                        <span className="w-[6px] h-[6px] rounded-full flex-shrink-0" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
+                        <div className="text-[12.5px] font-bold text-[#15171C] truncate">{lead.nombre}</div>
                         {esLeadWeb(lead) && (
-                          <span title="Vino del formulario web (/registro)" className="flex-shrink-0 text-[9px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] px-[5px] py-[1px] rounded-full uppercase tracking-[0.03em]">Web</span>
+                          <span title="Vino del formulario web (/registro)" className="flex-shrink-0 text-[8.5px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] px-[4px] py-[0.5px] rounded-full uppercase tracking-[0.03em]">Web</span>
                         )}
                       </div>
-                      <span className="w-[7px] h-[7px] rounded-full flex-shrink-0 mt-1" style={{ background: PRIORIDAD_COLOR[lead.prioridad] }} />
+                      <div className="text-[11px] font-bold text-[#1F9B6E] flex-shrink-0">{money(lead.precio)}</div>
                     </div>
-                    <div className="text-[11px] text-[#8A929E] font-semibold mt-0.5">{lead.nicho}</div>
-                    <div className="flex justify-between items-center mt-2.5">
-                      <div className="text-[11px] text-[#9AA0A8] font-semibold">{lead.faseVenta}</div>
-                      <div className="text-[11.5px] font-bold text-[#1F9B6E]">{money(lead.precio)}</div>
-                    </div>
-                    <div onClick={e => e.stopPropagation()} className="flex gap-[6px] mt-2.5">
-                      <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer"
-                        className="flex-1 text-center py-[6px] rounded-[7px] bg-[#EAF7F1] text-[#1F9B6E] text-[10.5px] font-bold no-underline">WhatsApp</a>
-                      <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
-                        className="bg-[#F4F6F8] border border-[#E2E5EA] text-[#15171C] rounded-[7px] text-[10.5px] font-semibold px-1 outline-none cursor-pointer" />
+                    <div className="flex justify-between items-center gap-2 mt-1">
+                      <div className="text-[10.5px] text-[#9AA0A8] font-semibold truncate">{lead.nicho ? `${lead.nicho} · ` : ''}{lead.faseVenta}</div>
+                      <div onClick={e => e.stopPropagation()} className="flex items-center gap-1 flex-shrink-0">
+                        <a href={waLink(lead.numero)} target="_blank" rel="noopener noreferrer" title="WhatsApp"
+                          className="w-[22px] h-[22px] flex items-center justify-center rounded-[6px] bg-[#EAF7F1] text-[#1F9B6E] no-underline">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.48 3.53 1.32 5.01L2 22l5.14-1.28A9.94 9.94 0 0 0 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18a7.9 7.9 0 0 1-4.03-1.1l-.29-.17-3 .75.76-2.93-.19-.3A7.93 7.93 0 1 1 12 20zm4.36-5.96c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.01-.37.11-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.46-.39-.4-.54-.4-.14 0-.3-.02-.46-.02s-.42.06-.64.3c-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.64.58.25 1.03.4 1.38.51.58.18 1.11.16 1.53.1.47-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28z" /></svg>
+                        </a>
+                        <Dropdown value={lead.estado} onChange={v => patchLead(lead.id, { estado: v as Lead['estado'] })} options={ESTADOS}
+                          className="h-[22px] bg-[#F4F6F8] border border-[#E2E5EA] text-[#15171C] rounded-[6px] text-[9.5px] font-semibold px-1 outline-none cursor-pointer" />
+                      </div>
                     </div>
                   </div>
                 ))}
