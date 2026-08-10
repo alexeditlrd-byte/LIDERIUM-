@@ -112,6 +112,34 @@ interface Message {
   status: string | null;
 }
 
+// Sonido tipo WhatsApp cuando llega un mensaje entrante — sintetizado
+// con Web Audio (sin archivo de audio propio) para no depender de ningún
+// asset ni de derechos sobre el sonido real de WhatsApp.
+function playIncomingSound() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioCtx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    [880, 1175].forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * 0.09);
+      gain.gain.linearRampToValueAtTime(0.15, now + i * 0.09 + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.09 + 0.18);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + i * 0.09);
+      osc.stop(now + i * 0.09 + 0.2);
+    });
+    setTimeout(() => ctx.close(), 500);
+  } catch {
+    // Los navegadores bloquean audio si todavía no hubo ninguna
+    // interacción del usuario con la página — no es un error real.
+  }
+}
+
 function StatusTicks({ status }: { status: string | null }) {
   if (status === 'read') return <span title="Leído" style={{ color: '#53BDEB' }}>✓✓</span>;
   if (status === 'delivered') return <span title="Entregado" style={{ color: '#AEB4BE' }}>✓✓</span>;
@@ -454,6 +482,7 @@ export default function PanelWhatsApp({ showToast }: { showToast: (text: string,
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'whatsapp_messages' }, payload => {
         const row = payload.new as { phone?: string; direction?: string; created_at?: string };
         if (!row.phone || row.direction !== 'in') return;
+        playIncomingSound();
         const bumpedTime = row.created_at || new Date().toISOString();
         setConversations(prev => {
           const exists = prev.some(c => c.phone === row.phone);
