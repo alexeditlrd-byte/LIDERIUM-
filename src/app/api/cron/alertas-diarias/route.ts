@@ -122,12 +122,15 @@ export async function GET(req: NextRequest) {
 
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    await resend.emails.send({
+    // El SDK de Resend no lanza excepción si falla — devuelve {data, error}
+    // y hay que revisarlo a mano, si no, un envío fallido se reporta como éxito.
+    const { error } = await resend.emails.send({
       from: 'Liderium <onboarding@resend.dev>',
       to: process.env.ALERTAS_EMAIL_TO!.split(',').map(e => e.trim()),
       subject: totalPendientes === 0 ? '✅ Liderium — todo al día' : `Liderium — ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} hoy`,
       html,
     });
+    if (error) return NextResponse.json({ error: error.message }, { status: 502 });
     return NextResponse.json({ success: true, totalPendientes });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error al enviar el correo' }, { status: 502 });
