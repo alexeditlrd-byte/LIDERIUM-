@@ -124,7 +124,7 @@ export async function GET(req: NextRequest) {
     const resend = new Resend(process.env.RESEND_API_KEY);
     await resend.emails.send({
       from: 'Liderium <onboarding@resend.dev>',
-      to: process.env.ALERTAS_EMAIL_TO!,
+      to: process.env.ALERTAS_EMAIL_TO!.split(',').map(e => e.trim()),
       subject: totalPendientes === 0 ? '✅ Liderium — todo al día' : `Liderium — ${totalPendientes} pendiente${totalPendientes === 1 ? '' : 's'} hoy`,
       html,
     });
