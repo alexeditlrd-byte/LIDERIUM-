@@ -129,6 +129,18 @@ export default function RegistroPage() {
               </a>
             </>
           )}
+
+          <div className="h-px bg-[#1b2550] my-6" />
+          <p className="text-[14px] font-semibold text-[#c7cfda] mb-3">Mientras tanto, síguenos en Instagram:</p>
+          <a href="https://instagram.com/liderium.marketing_" target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 w-full box-border border border-[#1e2a55] text-[#eef1f5] no-underline rounded-[10px] py-4 text-[15px] font-bold hover:border-[#3b5bff] transition">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5.5" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor" stroke="none" />
+            </svg>
+            @liderium.marketing_
+          </a>
         </div>
       )}
 
