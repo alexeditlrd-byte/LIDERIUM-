@@ -1,15 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ffmpegPath from 'ffmpeg-static';
+import ffmpegStaticPath from 'ffmpeg-static';
 import ffmpeg from 'fluent-ffmpeg';
 import os from 'os';
 import path from 'path';
+import fsSync from 'fs';
 import { promises as fs } from 'fs';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath);
+// ffmpeg-static calcula su ruta al binario usando el directorio donde se
+// instaló el paquete — en Vercel eso pasa durante el build (ej.
+// /ROOT/node_modules/...), pero la función corre después desde otra
+// carpeta (/var/task/...), así que esa ruta ya no existe ahí. Hay que
+// recalcularla relativo al directorio real en el momento de ejecutar.
+function resolveFfmpegPath(): string {
+  if (ffmpegStaticPath && fsSync.existsSync(ffmpegStaticPath)) return ffmpegStaticPath;
+  const fallback = path.join(process.cwd(), 'node_modules', 'ffmpeg-static', 'ffmpeg');
+  if (fsSync.existsSync(fallback)) return fallback;
+  throw new Error('No se encontró el binario de ffmpeg');
+}
 
 // Chrome/Brave graban notas de voz en un contenedor mp4 o webm, pero con
 // códec Opus adentro — WhatsApp exige AAC real dentro del mp4 (o alguno
@@ -21,6 +32,10 @@ if (ffmpegPath) ffmpeg.setFfmpegPath(ffmpegPath);
 export async function POST(req: NextRequest) {
   const inputBuffer = Buffer.from(await req.arrayBuffer());
   if (inputBuffer.length === 0) return NextResponse.json({ error: 'Audio vacío' }, { status: 400 });
+
+  const resolvedFfmpegPath = resolveFfmpegPath();
+  fsSync.chmodSync(resolvedFfmpegPath, 0o755);
+  ffmpeg.setFfmpegPath(resolvedFfmpegPath);
 
   const tmpDir = os.tmpdir();
   const inputPath = path.join(tmpDir, `wa-voice-in-${Date.now()}`);
