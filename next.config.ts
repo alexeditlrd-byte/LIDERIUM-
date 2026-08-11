@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // audio falla en producción con "ffmpeg no encontrado".
   outputFileTracingIncludes: {
     '/api/whatsapp/transcode-audio': ['./node_modules/ffmpeg-static/**'],
+    '/api/instagram/transcode-audio': ['./node_modules/ffmpeg-static/**'],
   },
   experimental: {
     serverActions: {

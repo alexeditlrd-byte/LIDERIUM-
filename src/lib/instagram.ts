@@ -23,7 +23,7 @@ export interface IGMessage {
   text: string;
   shareLink: string | null;
   attachmentUrl: string | null;
-  attachmentType: 'image' | 'video' | null;
+  attachmentType: 'image' | 'video' | 'audio' | null;
   createdTime: string;
 }
 
@@ -45,7 +45,7 @@ interface RawMessage {
   message?: string;
   created_time: string;
   shares?: { data: { link: string }[] };
-  attachments?: { data: { image_data?: { url: string }; video_data?: { url: string } }[] };
+  attachments?: { data: { image_data?: { url: string }; video_data?: { url: string }; audio_data?: { url: string } }[] };
 }
 
 export async function listConversations(): Promise<IGConversation[]> {
@@ -65,14 +65,14 @@ export async function listConversations(): Promise<IGConversation[]> {
 
 export async function getMessages(conversationId: string): Promise<IGMessage[]> {
   const data = await igFetch(`/${conversationId}`, {
-    fields: 'messages.limit(30){id,from,message,shares,attachments{image_data{url},video_data{url}},created_time}',
+    fields: 'messages.limit(30){id,from,message,shares,attachments{image_data{url},video_data{url},audio_data{url}},created_time}',
   });
   const messages = (data.messages?.data ?? []) as RawMessage[];
   return messages
     .map((m) => {
       const att = m.attachments?.data?.[0];
-      const attachmentUrl = att?.image_data?.url ?? att?.video_data?.url ?? null;
-      const attachmentType: 'image' | 'video' | null = att?.image_data ? 'image' : att?.video_data ? 'video' : null;
+      const attachmentUrl = att?.image_data?.url ?? att?.video_data?.url ?? att?.audio_data?.url ?? null;
+      const attachmentType: 'image' | 'video' | 'audio' | null = att?.image_data ? 'image' : att?.video_data ? 'video' : att?.audio_data ? 'audio' : null;
       return {
         id: m.id,
         fromId: m.from?.id ?? '',
@@ -98,7 +98,7 @@ export async function sendMessage(recipientId: string, text: string): Promise<vo
   if (!res.ok || data.error) throw new Error(data.error?.message || 'No se pudo enviar el mensaje de Instagram');
 }
 
-export async function sendAttachment(recipientId: string, mediaUrl: string, type: 'image' | 'video'): Promise<void> {
+export async function sendAttachment(recipientId: string, mediaUrl: string, type: 'image' | 'video' | 'audio'): Promise<void> {
   const url = new URL(`${GRAPH}/me/messages`);
   url.searchParams.set('access_token', accessToken());
   const res = await fetch(url.toString(), {

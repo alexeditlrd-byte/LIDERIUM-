@@ -6,7 +6,8 @@ export async function POST(req: NextRequest) {
   if (!recipientId) return NextResponse.json({ error: 'Falta destinatario' }, { status: 400 });
   try {
     if (attachmentUrl) {
-      await sendAttachment(recipientId, attachmentUrl, attachmentType === 'video' ? 'video' : 'image');
+      const type = attachmentType === 'video' ? 'video' : attachmentType === 'audio' ? 'audio' : 'image';
+      await sendAttachment(recipientId, attachmentUrl, type);
     } else if (text?.trim()) {
       await sendMessage(recipientId, text.trim());
     } else {

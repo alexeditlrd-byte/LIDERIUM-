@@ -23,7 +23,7 @@ interface Message {
   text: string;
   shareLink: string | null;
   attachmentUrl: string | null;
-  attachmentType: 'image' | 'video' | null;
+  attachmentType: 'image' | 'video' | 'audio' | null;
   createdTime: string;
 }
 
@@ -79,6 +79,11 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const localIdCounter = useRef(0);
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const [recording, setRecording] = useState(false);
+  const [sendingVoice, setSendingVoice] = useState(false);
 
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
@@ -420,6 +425,52 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
+  const toggleRecording = async () => {
+    if (recording) {
+      mediaRecorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // No hace falta que el navegador grabe en un formato que Instagram
+      // acepte — el servidor lo convierte a AAC/m4a antes de mandarlo
+      // (ver /api/instagram/transcode-audio), igual que se hace con las
+      // notas de voz de WhatsApp.
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        setSendingVoice(true);
+        try {
+          if (!selected) throw new Error('Selecciona una conversación');
+          const transcodeRes = await fetch('/api/instagram/transcode-audio', { method: 'POST', body: blob });
+          const transcodeData = await transcodeRes.json();
+          if (!transcodeRes.ok) throw new Error(transcodeData.error ?? 'No se pudo convertir el audio');
+          const res = await fetch('/api/instagram/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ recipientId: selected.participantId, attachmentUrl: transcodeData.publicUrl, attachmentType: 'audio' }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error);
+          pushLocalMessage({ attachmentUrl: transcodeData.publicUrl, attachmentType: 'audio' });
+        } catch (e) {
+          showToast(e instanceof Error ? e.message : 'No se pudo enviar la nota de voz', false);
+        }
+        setSendingVoice(false);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start();
+      setRecording(true);
+    } catch {
+      showToast('No se pudo acceder al micrófono', false);
+    }
+  };
+
   return (
     <div>
       {!configured && (
@@ -525,6 +576,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                           {m.attachmentUrl ? (
                             m.attachmentType === 'video' ? (
                               <video src={m.attachmentUrl} controls className="rounded-[10px] max-w-full max-h-[260px]" />
+                            ) : m.attachmentType === 'audio' ? (
+                              <audio src={m.attachmentUrl} controls className="max-w-full" />
                             ) : (
                               <a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer">
                                 <img src={m.attachmentUrl} alt="Adjunto" className="rounded-[10px] max-w-full max-h-[260px] block" />
@@ -607,6 +660,17 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     style={{ background: showEmojiPicker ? '#EAF1F8' : '#F4F6F8' }}>
                     😊
                   </button>
+                  <button onClick={toggleRecording} disabled={sendingVoice} title={recording ? 'Detener y enviar' : 'Grabar nota de voz'}
+                    className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: recording ? '#FCEDED' : '#F4F6F8', color: recording ? '#D14343' : '#5A6270' }}>
+                    {sendingVoice ? (
+                      <svg className="animate-spin" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M21 12a9 9 0 1 1-6.2-8.6" /></svg>
+                    ) : recording ? (
+                      <span className="w-3 h-3 rounded-[3px] bg-[#D14343] animate-pulse" />
+                    ) : (
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><path d="M12 19v4M8 23h8" /></svg>
+                    )}
+                  </button>
                   <button onClick={() => setShowQuickReplies(s => !s)} title="Respuestas rápidas"
                     className="w-11 h-11 flex-shrink-0 flex items-center justify-center border-none rounded-[12px] cursor-pointer transition"
                     style={{ background: showQuickReplies ? '#EAF1F8' : '#F4F6F8', color: showQuickReplies ? '#2E6CA0' : '#5A6270' }}>
@@ -616,8 +680,9 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                     value={reply}
                     onChange={e => setReply(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') submitReply(); }}
-                    placeholder="Escribe una respuesta…"
-                    className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition"
+                    placeholder={recording ? 'Grabando nota de voz…' : 'Escribe una respuesta…'}
+                    disabled={recording}
+                    className="flex-1 h-11 px-4 border-[1.5px] border-[#E2E5EA] rounded-[12px] text-[13.5px] font-medium outline-none bg-[#FAFBFC] text-[#15171C] focus:border-steel focus:bg-white transition disabled:opacity-60"
                   />
                   <button onClick={() => submitReply()} disabled={sending || !reply.trim()}
                     className="h-11 px-5 bg-[#15171C] text-white border-none rounded-[12px] cursor-pointer font-bold text-[13px] hover:bg-steel transition disabled:opacity-50 disabled:cursor-not-allowed">

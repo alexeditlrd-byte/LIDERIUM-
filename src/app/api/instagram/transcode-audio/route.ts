@@ -9,20 +9,16 @@ import { resolveFfmpegPath } from '@/lib/ffmpeg';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 
-// Chrome/Brave graban notas de voz en un contenedor mp4 o webm, pero con
-// códec Opus adentro — WhatsApp exige AAC real dentro del mp4 (o alguno
-// de los otros formatos de su lista), así que aunque el archivo se suba
-// con el Content-Type correcto, Meta lo rechaza al procesarlo. No hay
-// forma de grabar directo en un formato que el navegador soporte Y que
-// WhatsApp acepte, así que se convierte acá, del lado del servidor, a
-// mp3 (audio/mpeg — sí está en la lista de Meta).
+// Igual que el de WhatsApp (mismo problema: el navegador graba con códec
+// Opus adentro, sea cual sea el contenedor) — Instagram acepta audio en
+// AAC/M4A/WAV, así que acá se convierte a AAC dentro de un contenedor m4a.
 export async function POST(req: NextRequest) {
   const inputBuffer = Buffer.from(await req.arrayBuffer());
   if (inputBuffer.length === 0) return NextResponse.json({ error: 'Audio vacío' }, { status: 400 });
 
   const tmpDir = os.tmpdir();
-  const inputPath = path.join(tmpDir, `wa-voice-in-${Date.now()}`);
-  const outputPath = path.join(tmpDir, `wa-voice-out-${Date.now()}.mp3`);
+  const inputPath = path.join(tmpDir, `ig-voice-in-${Date.now()}`);
+  const outputPath = path.join(tmpDir, `ig-voice-out-${Date.now()}.m4a`);
 
   try {
     ffmpeg.setFfmpegPath(resolveFfmpegPath());
@@ -30,10 +26,10 @@ export async function POST(req: NextRequest) {
 
     await new Promise<void>((resolve, reject) => {
       ffmpeg(inputPath)
-        .audioCodec('libmp3lame')
+        .audioCodec('aac')
         .audioBitrate('64k')
         .audioChannels(1)
-        .format('mp3')
+        .format('mp4')
         .on('end', () => resolve())
         .on('error', err => reject(err))
         .save(outputPath);
@@ -41,12 +37,12 @@ export async function POST(req: NextRequest) {
 
     const outputBuffer = await fs.readFile(outputPath);
 
-    const filePath = `voz_${Date.now()}.mp3`;
-    await supabaseAdmin.storage.createBucket('wa-media', { public: true, fileSizeLimit: '50MB' }).catch(() => {});
-    const { error } = await supabaseAdmin.storage.from('wa-media').upload(filePath, outputBuffer, { contentType: 'audio/mpeg', upsert: true });
+    const filePath = `voz_${Date.now()}.m4a`;
+    await supabaseAdmin.storage.createBucket('ig-media', { public: true, fileSizeLimit: '50MB' }).catch(() => {});
+    const { error } = await supabaseAdmin.storage.from('ig-media').upload(filePath, outputBuffer, { contentType: 'audio/mp4', upsert: true });
     if (error) throw new Error(error.message);
 
-    const { data } = supabaseAdmin.storage.from('wa-media').getPublicUrl(filePath);
+    const { data } = supabaseAdmin.storage.from('ig-media').getPublicUrl(filePath);
     return NextResponse.json({ publicUrl: data.publicUrl });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'No se pudo convertir el audio' }, { status: 500 });
