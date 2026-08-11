@@ -6,7 +6,7 @@ import type { Lead } from '@/lib/leads-sheet';
 function normalizePhone(numero: string): string {
   return (numero || '').replace(/[^0-9]/g, '');
 }
-function normalizeHandle(handle: string): string {
+export function normalizeHandle(handle: string): string {
   return (handle || '').replace(/^@/, '').trim().toLowerCase();
 }
 
