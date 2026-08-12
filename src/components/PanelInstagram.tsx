@@ -620,13 +620,14 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                         </div>
                       ))}
                     </div>
-                    <div className="flex gap-1.5 border-t border-[#F0F2F5] pt-2.5">
-                      <input value={newQuickReply} onChange={e => setNewQuickReply(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') addQuickReply(); }}
-                        placeholder="Nueva respuesta rápida…"
-                        className="flex-1 h-9 px-3 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition" />
+                    <div className="border-t border-[#F0F2F5] pt-2.5">
+                      <textarea value={newQuickReply} onChange={e => setNewQuickReply(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) addQuickReply(); }}
+                        placeholder="Nueva respuesta rápida… (Enter para salto de línea)"
+                        rows={3}
+                        className="w-full px-3 py-2 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-none" />
                       <button onClick={addQuickReply} disabled={!newQuickReply.trim()}
-                        className="h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="mt-1.5 w-full h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
                         Agregar
                       </button>
                     </div>
