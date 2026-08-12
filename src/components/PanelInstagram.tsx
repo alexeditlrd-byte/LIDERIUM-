@@ -7,6 +7,7 @@ import ChatLeadCard from '@/components/ChatLeadCard';
 import { useSatContext } from '@/lib/use-sat-context';
 import { matchLeadByInstagram } from '@/lib/lead-match';
 import { computeLeadScore, esLeadCuestionario } from '@/lib/lead-scoring';
+import { playIncomingSound } from '@/lib/sound';
 
 interface Conversation {
   id: string;
@@ -237,6 +238,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
         if (!participantId) return;
         const conv = conversationsRef.current.find(c => c.participantId === participantId);
         if (conv) {
+          playIncomingSound();
           // Adelanta la hora de esta conversación al instante, sin esperar
           // a que Instagram termine de actualizar su propio updated_time —
           // así "no leído" (que se calcula comparando esa hora) aparece de
