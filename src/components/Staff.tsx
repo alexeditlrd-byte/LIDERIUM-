@@ -87,11 +87,7 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
   { id: 'instagram', label: 'Instagram de Santiago' },
-  // WhatsApp: oculto del menú por decisión del equipo (volvieron a la app
-  // normal de WhatsApp Business en vez de la Cloud API) — el código y la
-  // ruta siguen intactos por si en algún momento quieren retomarlo,
-  // por ejemplo con "Coexistence" (app + API en el mismo número).
-  // { id: 'whatsapp', label: 'WhatsApp' },
+  { id: 'whatsapp', label: 'WhatsApp' },
 ];
 
 const titles: Record<StaffTab, string> = {
