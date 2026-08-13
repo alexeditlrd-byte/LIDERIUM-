@@ -14,6 +14,7 @@ type Filter = 'all' | 'alta' | 'nuevo';
 
 const RESPONSABLES = ['Winona', 'Maryori'];
 const PROPIETARIOS = ['Terry', 'Santiago'];
+const PLANES = ['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP'];
 
 const ESTADOS: Lead['estado'][] = ['Nuevo', 'No calificado', 'Contactado', 'Ganado', 'Perdido'];
 const PRIORIDADES: Lead['prioridad'][] = ['Alta', 'Media', 'Baja'];
@@ -132,6 +133,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [responsableFilter, setResponsableFilter] = useState('Todos');
+  const [planFilter, setPlanFilter] = useState('Todos');
   const [dayFilter, setDayFilter] = useState(''); // '' = todos los días; 'YYYY-MM-DD' filtra un día puntual
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
@@ -337,6 +339,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       if (filter === 'alta' && l.prioridad !== 'Alta') return false;
       if (filter === 'nuevo' && l.estado !== 'Nuevo') return false;
       if (responsableFilter !== 'Todos' && l.responsable.trim().toLowerCase() !== responsableFilter.toLowerCase()) return false;
+      if (planFilter !== 'Todos' && l.plan !== planFilter) return false;
       if (dayFilter) {
         const raw = l.createdAt ? new Date(l.createdAt) : new Date();
         const key = `${raw.getFullYear()}-${String(raw.getMonth() + 1).padStart(2, '0')}-${String(raw.getDate()).padStart(2, '0')}`;
@@ -344,7 +347,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       }
       return true;
     });
-  }, [monthLeads, search, filter, responsableFilter, dayFilter]);
+  }, [monthLeads, search, filter, responsableFilter, planFilter, dayFilter]);
 
   const visibleGroups = useMemo(() => groupLeadsByDay(visible), [visible]);
 
@@ -527,6 +530,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
         <div className="flex items-center gap-2">
           <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Responsable</span>
           <Dropdown value={responsableFilter} onChange={setResponsableFilter} options={['Todos', ...RESPONSABLES]}
+            className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-[#9AA0A8] uppercase tracking-[0.05em]">Producto</span>
+          <Dropdown value={planFilter} onChange={setPlanFilter} options={['Todos', ...PLANES]}
             className="h-[42px] bg-white border border-[#E2E5EA] rounded-[10px] px-3 text-[12.5px] font-bold text-[#3C434F] cursor-pointer outline-none" />
         </div>
 
@@ -851,7 +860,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <label className={labelClass}>Plan</label>
                 <Dropdown className={inputClass} value={draft.plan} onChange={plan => {
                   setDraft(d => ({ ...d, plan, precio: PLAN_PRICES[plan] ?? d.precio }));
-                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP']} />
+                }} options={PLANES} />
               </div>
               <div>
                 <label className={labelClass}>Responsable</label>
@@ -992,7 +1001,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <div className={labelClass}>Plan</div>
                 <Dropdown value={selectedLead.plan} onChange={plan => {
                   patchLead(selectedLead.id, { plan, precio: PLAN_PRICES[plan] ?? selectedLead.precio });
-                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP']}
+                }} options={PLANES}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
