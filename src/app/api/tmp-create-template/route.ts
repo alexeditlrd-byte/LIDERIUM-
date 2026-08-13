@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     method: 'POST',
     headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      name: 'saludo_reactivacion',
+      name: 'hola_reactivar_lead',
       language: 'es_PE',
       category: 'MARKETING',
       components: [{ type: 'BODY', text: '¡Hola! 👋' }],
