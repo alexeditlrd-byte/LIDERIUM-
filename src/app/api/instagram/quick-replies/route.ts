@@ -12,11 +12,11 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const { texto } = await req.json();
+  const { texto, color } = await req.json();
   if (!texto?.trim()) return NextResponse.json({ error: 'Falta el texto' }, { status: 400 });
   const { data, error } = await supabaseAdmin
     .from('ig_quick_replies')
-    .insert({ texto: texto.trim() })
+    .insert({ texto: texto.trim(), color: color ?? 'blanco' })
     .select()
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -24,11 +24,11 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const { id, texto } = await req.json();
+  const { id, texto, color } = await req.json();
   if (!id || !texto?.trim()) return NextResponse.json({ error: 'Falta id o texto' }, { status: 400 });
   const { data, error } = await supabaseAdmin
     .from('ig_quick_replies')
-    .update({ texto: texto.trim() })
+    .update({ texto: texto.trim(), color: color ?? 'blanco' })
     .eq('id', id)
     .select()
     .single();

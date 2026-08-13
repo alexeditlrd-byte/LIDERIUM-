@@ -31,6 +31,25 @@ interface Message {
 interface QuickReply {
   id: string;
   texto: string;
+  color?: string;
+}
+
+const QR_COLORS: Record<string, { bg: string; text: string }> = {
+  blanco: { bg: '#F4F6F8', text: '#15171C' },
+  celeste: { bg: '#DCEEFB', text: '#175C8C' },
+  verde: { bg: '#DAF3E3', text: '#1E7A4C' },
+};
+
+function ColorSwatches({ value, onChange }: { value: string; onChange: (c: string) => void }) {
+  return (
+    <div className="flex gap-2 mb-2">
+      {Object.entries(QR_COLORS).map(([key, c]) => (
+        <button key={key} type="button" onClick={() => onChange(key)} title={key}
+          className="w-6 h-6 rounded-full cursor-pointer"
+          style={{ background: c.bg, border: value === key ? '2px solid #15171C' : '1.5px solid #E2E5EA' }} />
+      ))}
+    </div>
+  );
 }
 
 const RESPONSABLES_CHAT = ['Winona', 'Maryori'];
@@ -90,8 +109,10 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
+  const [newQuickReplyColor, setNewQuickReplyColor] = useState('blanco');
   const [editingQuickReplyId, setEditingQuickReplyId] = useState<string | null>(null);
   const [editingQuickReplyText, setEditingQuickReplyText] = useState('');
+  const [editingQuickReplyColor, setEditingQuickReplyColor] = useState('blanco');
 
   useEffect(() => {
     fetch('/api/instagram/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
@@ -127,12 +148,13 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const res = await fetch('/api/instagram/quick-replies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texto: newQuickReply.trim() }),
+      body: JSON.stringify({ texto: newQuickReply.trim(), color: newQuickReplyColor }),
     });
     const data = await res.json();
     if (!res.ok) { showToast(data.error ?? 'No se pudo guardar', false); return; }
     setQuickReplies(q => [...q, data.reply]);
     setNewQuickReply('');
+    setNewQuickReplyColor('blanco');
   };
 
   const deleteQuickReply = async (id: string) => {
@@ -143,17 +165,19 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const startEditQuickReply = (qr: QuickReply) => {
     setEditingQuickReplyId(qr.id);
     setEditingQuickReplyText(qr.texto);
+    setEditingQuickReplyColor(qr.color ?? 'blanco');
   };
 
   const saveEditQuickReply = async () => {
     if (!editingQuickReplyId || !editingQuickReplyText.trim()) return;
     const id = editingQuickReplyId;
     const texto = editingQuickReplyText.trim();
+    const color = editingQuickReplyColor;
     try {
       const res = await fetch('/api/instagram/quick-replies', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, texto }),
+        body: JSON.stringify({ id, texto, color }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -642,6 +666,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                             rows={2}
                             autoFocus
                             className="w-full px-3 py-2 border-[1.5px] border-steel rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] resize-none" />
+                          <ColorSwatches value={editingQuickReplyColor} onChange={setEditingQuickReplyColor} />
                           <div className="flex gap-1.5">
                             <button onClick={saveEditQuickReply} disabled={!editingQuickReplyText.trim()}
                               className="flex-1 h-8 bg-[#15171C] text-white border-none rounded-[8px] cursor-pointer font-bold text-[11.5px] disabled:opacity-50 disabled:cursor-not-allowed">
@@ -657,7 +682,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                         <div key={qr.id} className="flex items-center gap-1.5 group">
                           <button
                             onClick={() => { submitReply(qr.texto); setShowQuickReplies(false); }}
-                            className="flex-1 text-left px-3 py-2 bg-[#F4F6F8] hover:bg-[#EAF1F8] rounded-[9px] text-[12.5px] font-medium text-[#15171C] border-none cursor-pointer truncate">
+                            style={{ background: QR_COLORS[qr.color ?? 'blanco']?.bg ?? QR_COLORS.blanco.bg, color: QR_COLORS[qr.color ?? 'blanco']?.text ?? QR_COLORS.blanco.text }}
+                            className="flex-1 text-left px-3 py-2 rounded-[9px] text-[12.5px] font-medium border-none cursor-pointer truncate hover:opacity-80 transition">
                             {qr.texto}
                           </button>
                           <button onClick={() => startEditQuickReply(qr)} title="Editar"
@@ -677,8 +703,11 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                         placeholder="Nueva respuesta rápida… (Enter para salto de línea)"
                         rows={3}
                         className="w-full px-3 py-2 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-none" />
+                      <div className="mt-1.5">
+                        <ColorSwatches value={newQuickReplyColor} onChange={setNewQuickReplyColor} />
+                      </div>
                       <button onClick={addQuickReply} disabled={!newQuickReply.trim()}
-                        className="mt-1.5 w-full h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
+                        className="w-full h-9 px-3 bg-[#15171C] text-white border-none rounded-[9px] cursor-pointer font-bold text-[12px] disabled:opacity-50 disabled:cursor-not-allowed">
                         Agregar
                       </button>
                     </div>
