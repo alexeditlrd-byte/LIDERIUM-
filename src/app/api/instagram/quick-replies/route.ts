@@ -23,6 +23,19 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, reply: data });
 }
 
+export async function PATCH(req: NextRequest) {
+  const { id, texto } = await req.json();
+  if (!id || !texto?.trim()) return NextResponse.json({ error: 'Falta id o texto' }, { status: 400 });
+  const { data, error } = await supabaseAdmin
+    .from('ig_quick_replies')
+    .update({ texto: texto.trim() })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  return NextResponse.json({ success: true, reply: data });
+}
+
 export async function DELETE(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const id = searchParams.get('id');

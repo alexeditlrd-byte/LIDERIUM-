@@ -90,6 +90,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [newQuickReply, setNewQuickReply] = useState('');
+  const [editingQuickReplyId, setEditingQuickReplyId] = useState<string | null>(null);
+  const [editingQuickReplyText, setEditingQuickReplyText] = useState('');
 
   useEffect(() => {
     fetch('/api/instagram/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
@@ -136,6 +138,30 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const deleteQuickReply = async (id: string) => {
     setQuickReplies(q => q.filter(r => r.id !== id));
     await fetch(`/api/instagram/quick-replies?id=${id}`, { method: 'DELETE' }).catch(() => {});
+  };
+
+  const startEditQuickReply = (qr: QuickReply) => {
+    setEditingQuickReplyId(qr.id);
+    setEditingQuickReplyText(qr.texto);
+  };
+
+  const saveEditQuickReply = async () => {
+    if (!editingQuickReplyId || !editingQuickReplyText.trim()) return;
+    const id = editingQuickReplyId;
+    const texto = editingQuickReplyText.trim();
+    try {
+      const res = await fetch('/api/instagram/quick-replies', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, texto }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setQuickReplies(q => q.map(r => (r.id === id ? data.reply : r)));
+      setEditingQuickReplyId(null);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : 'No se pudo guardar', false);
+    }
   };
 
   // "No leído" se calcula siempre de la misma forma, en el momento de
@@ -608,12 +634,35 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                       <div className="text-[12.5px] text-[#9AA0A8] font-semibold mb-2">Todavía no agregas ninguna.</div>
                     )}
                     <div className="flex flex-col gap-1.5 mb-3">
-                      {quickReplies.map(qr => (
+                      {quickReplies.map(qr => editingQuickReplyId === qr.id ? (
+                        <div key={qr.id} className="flex flex-col gap-1.5">
+                          <textarea
+                            value={editingQuickReplyText}
+                            onChange={e => setEditingQuickReplyText(e.target.value)}
+                            rows={2}
+                            autoFocus
+                            className="w-full px-3 py-2 border-[1.5px] border-steel rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] resize-none" />
+                          <div className="flex gap-1.5">
+                            <button onClick={saveEditQuickReply} disabled={!editingQuickReplyText.trim()}
+                              className="flex-1 h-8 bg-[#15171C] text-white border-none rounded-[8px] cursor-pointer font-bold text-[11.5px] disabled:opacity-50 disabled:cursor-not-allowed">
+                              Guardar
+                            </button>
+                            <button onClick={() => setEditingQuickReplyId(null)}
+                              className="flex-1 h-8 bg-[#F4F6F8] text-[#5A6270] border-none rounded-[8px] cursor-pointer font-bold text-[11.5px]">
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
                         <div key={qr.id} className="flex items-center gap-1.5 group">
                           <button
                             onClick={() => { submitReply(qr.texto); setShowQuickReplies(false); }}
                             className="flex-1 text-left px-3 py-2 bg-[#F4F6F8] hover:bg-[#EAF1F8] rounded-[9px] text-[12.5px] font-medium text-[#15171C] border-none cursor-pointer truncate">
                             {qr.texto}
+                          </button>
+                          <button onClick={() => startEditQuickReply(qr)} title="Editar"
+                            className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-transparent border-none text-[#C2C8D2] hover:text-[#2E6CA0] hover:bg-[#EAF1F8] cursor-pointer flex items-center justify-center">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
                           </button>
                           <button onClick={() => deleteQuickReply(qr.id)} title="Eliminar"
                             className="flex-shrink-0 w-7 h-7 rounded-[7px] bg-transparent border-none text-[#C2C8D2] hover:text-[#D14343] hover:bg-[#FBEAEA] cursor-pointer text-[13px] font-bold">
