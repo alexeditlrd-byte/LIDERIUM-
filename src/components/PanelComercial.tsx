@@ -33,7 +33,10 @@ const PRIORIDAD_COLOR: Record<Lead['prioridad'], string> = {
   Baja: '#AEB4BE',
 };
 
-const PLAN_PRICES: Record<string, number> = { SKOOL: 750, SERVICIO: 2000 };
+const PLAN_PRICES: Record<string, number> = { SKOOL: 750, SERVICIO: 2000, WORKSHOP: 200 };
+// WORKSHOP es el único plan cuyo precio ya está en soles (no dólares) — se
+// usa para no aplicar el tipo de cambio en Finanzas, ver PanelFinanzas.tsx.
+const PLANES_EN_SOLES = ['WORKSHOP'];
 const FASE_PROBABILIDAD: Record<string, string> = { 'Prospección': '20', 'Propuesta': '30', 'Negociación': '70', 'Cierre': '100' };
 
 function emptyDraft(): LeadInput {
@@ -60,10 +63,11 @@ function isoToDMY(iso: string) {
   const [y, m, d] = parts;
   return `${Number(d)}/${Number(m)}/${y}`;
 }
-function money(n: number) {
+function money(n: number, plan?: string) {
   const v = Number(n) || 0;
   const sign = v < 0 ? '-' : '';
-  return sign + '$' + Math.abs(v).toLocaleString('en-US');
+  const symbol = plan && PLANES_EN_SOLES.includes(plan) ? 'S/ ' : '$';
+  return sign + symbol + Math.abs(v).toLocaleString('en-US');
 }
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
@@ -275,7 +279,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
     const monto = Number(pagoMonto);
     if (!(monto > 0)) { showToast('El monto del abono debe ser mayor a 0.', false); return; }
     const saldoPendiente = lead.precio - lead.abono;
-    if (monto > saldoPendiente) { showToast(`El abono no puede superar el saldo pendiente (${money(saldoPendiente)}).`, false); return; }
+    if (monto > saldoPendiente) { showToast(`El abono no puede superar el saldo pendiente (${money(saldoPendiente, lead.plan)}).`, false); return; }
     setSavingPago(true);
     try {
       const res = await fetch('/api/finanzas/pagos', {
@@ -298,7 +302,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
   };
 
   const deletePago = async (pago: Pago, lead: Lead) => {
-    if (!confirm(`¿Eliminar el abono de ${money(pago.monto)}?`)) return;
+    if (!confirm(`¿Eliminar el abono de ${money(pago.monto, lead.plan)}?`)) return;
     try {
       const res = await fetch(`/api/finanzas/pagos?id=${pago.id}`, { method: 'DELETE' });
       const data = await res.json();
@@ -359,7 +363,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
     [allPagos, cerradoIds, selectedMonth]
   );
   const ganadosMesCount = new Set(pagosDelMes.map(p => p.leadId)).size;
-  const kpiIngresos = money(pagosDelMes.reduce((s, p) => s + p.monto, 0));
+  const planPorLead = useMemo(() => new Map(leads.map(l => [l.id, l.plan])), [leads]);
+  // Este KPI es en dólares — los pagos de planes en soles (Workshop) se
+  // excluyen para no sumar monedas distintas; sí se cuentan en Finanzas.
+  const kpiIngresos = money(
+    pagosDelMes
+      .filter(p => !PLANES_EN_SOLES.includes(planPorLead.get(p.leadId) || ''))
+      .reduce((s, p) => s + p.monto, 0)
+  );
 
   const columns = ESTADOS.map(estado => ({
     estado, leads: visible.filter(l => l.estado === estado),
@@ -636,7 +647,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                       <div className="text-[12px] text-[#8A929E] font-semibold">{lead.faseVenta}</div>
                       <div>
                         <div className="text-[12.5px] font-bold text-[#15171C]">{lead.plan}</div>
-                        <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio)}</div>
+                        <div className="text-[11.5px] text-[#9AA0A8] font-semibold">{money(lead.precio, lead.plan)}</div>
                       </div>
                       <div className="text-[12.5px] text-[#5A6270] font-semibold">{lead.responsable}</div>
                       <div onClick={e => e.stopPropagation()}>
@@ -701,7 +712,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                           <span title="Vino del formulario web (/registro)" className="flex-shrink-0 text-[8.5px] font-black text-[#2E6CA0] bg-[#EAF1F8] border border-[#CFE0F0] px-[4px] py-[0.5px] rounded-full uppercase tracking-[0.03em]">Web</span>
                         )}
                       </div>
-                      <div className="text-[11px] font-bold text-[#1F9B6E] flex-shrink-0">{money(lead.precio)}</div>
+                      <div className="text-[11px] font-bold text-[#1F9B6E] flex-shrink-0">{money(lead.precio, lead.plan)}</div>
                     </div>
                     <div className="flex justify-between items-center gap-2 mt-1">
                       <div className="text-[10.5px] text-[#9AA0A8] font-semibold truncate">{lead.nicho ? `${lead.nicho} · ` : ''}{lead.faseVenta}</div>
@@ -835,7 +846,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <label className={labelClass}>Plan</label>
                 <Dropdown className={inputClass} value={draft.plan} onChange={plan => {
                   setDraft(d => ({ ...d, plan, precio: PLAN_PRICES[plan] ?? d.precio }));
-                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY']} />
+                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP']} />
               </div>
               <div>
                 <label className={labelClass}>Responsable</label>
@@ -870,12 +881,12 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <input type="date" className={inputClass} value={dmyToISO(draft.fechaRenovacion)} onChange={e => setDraft(d => ({ ...d, fechaRenovacion: isoToDMY(e.target.value) }))} />
               </div>
               <div>
-                <label className={labelClass}>Precio (USD) *</label>
+                <label className={labelClass}>Precio ({PLANES_EN_SOLES.includes(draft.plan) ? 'S/' : 'USD'}) *</label>
                 <input className={inputClass} value={draft.precio || ''} onChange={e => setDraft(d => ({ ...d, precio: Number(e.target.value) || 0 }))} placeholder="5000" />
               </div>
               {draft.faseVenta === 'Cierre' && (
                 <div>
-                  <label className={labelClass}>Abono inicial (USD)</label>
+                  <label className={labelClass}>Abono inicial ({PLANES_EN_SOLES.includes(draft.plan) ? 'S/' : 'USD'})</label>
                   <input className={inputClass} value={draft.abono || ''} onChange={e => setDraft(d => ({ ...d, abono: Number(e.target.value) || 0 }))} placeholder="0" />
                 </div>
               )}
@@ -976,7 +987,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 <div className={labelClass}>Plan</div>
                 <Dropdown value={selectedLead.plan} onChange={plan => {
                   patchLead(selectedLead.id, { plan, precio: PLAN_PRICES[plan] ?? selectedLead.precio });
-                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY']}
+                }} options={['SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP']}
                   className="w-full bg-transparent border-none text-[13px] font-semibold text-[#15171C] outline-none p-0" />
               </div>
               <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] px-3 py-2.5">
@@ -1012,14 +1023,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 </div>
                 <div>
                   <div className={labelClass}>Abonado</div>
-                  <div className="text-[14px] font-bold mt-0.5 text-[#15171C]">{money(selectedLead.abono)}</div>
+                  <div className="text-[14px] font-bold mt-0.5 text-[#15171C]">{money(selectedLead.abono, selectedLead.plan)}</div>
                 </div>
                 <div>
                   <div className={labelClass}>Saldo pendiente</div>
                   {selectedLead.precio - selectedLead.abono <= 0 && selectedLead.precio > 0 ? (
                     <div className="text-[12px] font-bold mt-1 text-[#1F9B6E]">✓ Pagado completo</div>
                   ) : (
-                    <div className="text-[14px] font-bold mt-0.5 text-[#D14343]">{money(selectedLead.precio - selectedLead.abono)}</div>
+                    <div className="text-[14px] font-bold mt-0.5 text-[#D14343]">{money(selectedLead.precio - selectedLead.abono, selectedLead.plan)}</div>
                   )}
                 </div>
               </div>
@@ -1046,14 +1057,14 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                 {showPagoForm && (
                   <div className="bg-[#F6F8FA] border border-[#EDEFF3] rounded-[10px] p-3 mb-2 flex flex-col gap-2">
                     <div className="grid grid-cols-2 gap-2">
-                      <input value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder="Monto (USD)"
+                      <input value={pagoMonto} onChange={e => setPagoMonto(e.target.value)} placeholder={`Monto (${PLANES_EN_SOLES.includes(selectedLead.plan) ? 'S/' : 'USD'})`}
                         className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" />
                       <input type="date" value={pagoFecha} onChange={e => setPagoFecha(e.target.value)}
                         className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" style={{ colorScheme: 'light' }} />
                     </div>
                     <input value={pagoNota} onChange={e => setPagoNota(e.target.value)} placeholder="Nota (opcional)"
                       className="h-9 px-2.5 border border-[#E2E5EA] rounded-[8px] text-[12.5px] font-medium outline-none bg-white text-[#15171C] focus:border-steel" />
-                    <div className="text-[11px] text-[#9AA0A8] font-semibold">Saldo pendiente actual: {money(selectedLead.precio - selectedLead.abono)}</div>
+                    <div className="text-[11px] text-[#9AA0A8] font-semibold">Saldo pendiente actual: {money(selectedLead.precio - selectedLead.abono, selectedLead.plan)}</div>
                     <button onClick={() => submitPago(selectedLead)} disabled={savingPago}
                       className="h-9 bg-[#1F9B6E] text-white border-none rounded-[8px] font-bold text-[12.5px] cursor-pointer hover:bg-[#188058] transition disabled:opacity-60">
                       {savingPago ? 'Guardando…' : 'Guardar abono'}
@@ -1067,7 +1078,7 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
                     {leadPagos.map(p => (
                       <div key={p.id} className="flex items-center justify-between gap-2 bg-white border border-[#F0F2F5] rounded-[8px] px-3 py-2">
                         <div className="min-w-0">
-                          <div className="text-[13px] font-bold text-[#15171C]">{money(p.monto)}</div>
+                          <div className="text-[13px] font-bold text-[#15171C]">{money(p.monto, selectedLead.plan)}</div>
                           <div className="text-[11px] text-[#9AA0A8] font-semibold">{p.fecha.split('-').reverse().join('/')}{p.nota ? ` · ${p.nota}` : ''}</div>
                         </div>
                         <button onClick={() => deletePago(p, selectedLead)} title="Eliminar" className="text-[#C2C8D2] hover:text-[#D14343] bg-transparent border-none cursor-pointer text-[12px] font-bold flex-shrink-0">✕</button>
