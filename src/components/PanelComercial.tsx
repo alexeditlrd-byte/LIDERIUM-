@@ -371,6 +371,10 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       .filter(p => !PLANES_EN_SOLES.includes(planPorLead.get(p.leadId) || ''))
       .reduce((s, p) => s + p.monto, 0)
   );
+  // Aparte, porque está en soles y no se puede sumar junto al de arriba (USD).
+  const kpiIngresosSoles = pagosDelMes
+    .filter(p => PLANES_EN_SOLES.includes(planPorLead.get(p.leadId) || ''))
+    .reduce((s, p) => s + p.monto, 0);
 
   const columns = ESTADOS.map(estado => ({
     estado, leads: visible.filter(l => l.estado === estado),
@@ -542,12 +546,13 @@ export default function PanelComercial({ showToast }: PanelComercialProps) {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
         {[
           { label: 'Leads activos', value: kpiActivos, color: '#15171C' },
           { label: 'Nuevos sin contactar', value: newCount, color: '#1F9B6E' },
           { label: 'Ganados este mes', value: ganadosMesCount, color: '#15171C' },
-          { label: 'Ingresos cerrados', value: kpiIngresos, color: '#15171C' },
+          { label: 'Ingresos cerrados (USD)', value: kpiIngresos, color: '#15171C' },
+          { label: 'Ingresos Workshop (Soles)', value: money(kpiIngresosSoles, 'WORKSHOP'), color: '#15171C' },
         ].map((kpi, i) => (
           <div key={i} className="bg-white border border-[#ECEEF2] rounded-[18px] px-5 py-5">
             <div className="text-[11px] text-[#8A929E] font-bold uppercase tracking-[0.05em]">{kpi.label}</div>
