@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
       name: 'hola_reactivar_lead',
       language: 'es_PE',
       category: 'MARKETING',
-      components: [{ type: 'BODY', text: '¡Hola! 👋' }],
+      components: [{ type: 'BODY', text: '¡Hola! 👋 ¿Cómo vas? Quedé pendiente de tu respuesta, avísame si seguimos.' }],
     }),
   });
   const data = await res.json();
