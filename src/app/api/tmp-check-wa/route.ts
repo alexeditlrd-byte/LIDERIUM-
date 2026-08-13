@@ -7,11 +7,10 @@ export async function GET(req: NextRequest) {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
 
-  const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/register`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', pin: '246813' }),
-  });
+  const res = await fetch(
+    `https://graph.facebook.com/v21.0/${phoneNumberId}?fields=verified_name,display_phone_number,code_verification_status,quality_rating,platform_type,status`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
   const data = await res.json();
   return NextResponse.json({ status: res.status, data });
 }
