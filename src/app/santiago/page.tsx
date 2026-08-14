@@ -23,6 +23,18 @@ const BLUE_LIGHT = '#5FA0DA';
 const BG = '#08080A';
 const TEXT = '#F4F1EA';
 
+// Beam: barrido de brillo que cruza los botones CTA en loop — usa el keyframe
+// global @keyframes beamSweep (globals.css) vía la clase animate-beamSweep.
+function Beam() {
+  return (
+    <span
+      aria-hidden="true"
+      className="animate-beamSweep"
+      style={{ position: 'absolute', inset: 0, background: 'linear-gradient(100deg, transparent 30%, rgba(255,255,255,.4) 50%, transparent 70%)', pointerEvents: 'none' }}
+    />
+  );
+}
+
 export default function SantiagoEstrategiasPage() {
   const [open, setOpen] = useState(false);
   const [openDet, setOpenDet] = useState(false);
@@ -31,20 +43,39 @@ export default function SantiagoEstrategiasPage() {
     <>
       <style>{`
         .ss-page a { color: ${TEXT}; text-decoration: none; }
-        .ss-page a:hover { color: ${RED}; }
         .ss-page ::selection { background: ${RED}; color: ${BG}; }
         @keyframes ssPulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
-        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-2px); }
+        @keyframes ssShimmer { to { background-position: 200% center; } }
+        .ss-shimmer {
+          background: linear-gradient(90deg, ${BLUE} 0%, ${BLUE_LIGHT} 25%, #BFE0FF 50%, ${BLUE_LIGHT} 75%, ${BLUE} 100%);
+          background-size: 220% auto;
+          background-position: 0% center;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          animation: ssShimmer 5s linear infinite;
+        }
+        .ss-link-plain:hover { color: ${RED}; }
+        .ss-servicio-card { transition: border-color .2s, transform .2s; }
+        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-3px); }
+        .ss-workshop-link { transition: transform .2s; display: block; }
+        .ss-workshop-link:hover { transform: translateY(-3px); }
+        .ss-toggle-blue { transition: color .15s; }
         .ss-toggle-blue:hover { color: ${BLUE_LIGHT}; }
+        .ss-cta { position: relative; overflow: hidden; transition: transform .15s ease, box-shadow .15s ease; }
+        .ss-cta:hover { transform: scale(1.015); box-shadow: 0 8px 24px -8px rgba(46,108,160,.55); }
+        .ss-stat { transition: transform .18s ease, border-color .18s ease; }
+        .ss-stat:hover { transform: translateY(-3px); border-color: ${BLUE}; }
+        .ss-avatar-ring { box-shadow: 0 0 0 5px rgba(46,108,160,.14), 0 0 26px 4px rgba(46,108,160,.28); }
       `}</style>
 
       <div
         className={`ss-page ${archivo.variable} ${instrumentSans.variable}`}
         style={{
-          background: `radial-gradient(680px circle at 12% -5%, rgba(46,108,160,0.20), transparent 60%),
-            radial-gradient(680px circle at 92% 105%, rgba(255,69,54,0.16), transparent 60%),
-            ${BG}`,
+          background: BG,
           minHeight: '100vh',
+          position: 'relative',
+          overflow: 'hidden',
           fontFamily: 'var(--font-instrument-sans), system-ui, sans-serif',
           color: TEXT,
           display: 'flex',
@@ -52,7 +83,14 @@ export default function SantiagoEstrategiasPage() {
           padding: '0 16px 64px',
         }}
       >
-        <div style={{ width: '100%', maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Blobs de fondo animados — mismo lenguaje visual que Landing.tsx (auroraA/C) */}
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+          <div className="absolute rounded-full blur-[90px] animate-auroraA" style={{ width: 520, height: 520, left: -140, top: -140, background: `radial-gradient(circle, rgba(46,108,160,.32), transparent 70%)` }} />
+          <div className="absolute rounded-full blur-[100px] animate-auroraC" style={{ width: 480, height: 480, right: -150, bottom: -120, background: `radial-gradient(circle, rgba(255,69,54,.24), transparent 70%)` }} />
+          <div className="absolute rounded-full blur-[110px] animate-auroraB" style={{ width: 420, height: 420, right: '18%', top: -180, background: `radial-gradient(circle, rgba(46,108,160,.14), transparent 70%)` }} />
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 2px 6px' }}>
             <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 15, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
               Santiago<span style={{ color: BLUE_LIGHT }}>.</span>estrategias
@@ -71,7 +109,7 @@ export default function SantiagoEstrategiasPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 88, height: 88, borderRadius: 999, overflow: 'hidden', flex: 'none', border: '1px solid #26262E', position: 'relative' }}>
+              <div className="animate-floaty ss-avatar-ring" style={{ width: 88, height: 88, borderRadius: 999, overflow: 'hidden', flex: 'none', border: '1px solid #26262E', position: 'relative' }}>
                 <Image src="/santiago-avatar.webp" alt="Santiago Noriega" fill className="object-cover" />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -80,21 +118,21 @@ export default function SantiagoEstrategiasPage() {
               </div>
             </div>
 
-            <h1 style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(32px, 5.5vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.035em', margin: '4px 0 0' }}>
-              Escalo marcas personales con <span style={{ color: BLUE_LIGHT }}>estrategias virales</span>.
+            <h1 className="animate-fadeUp" style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(32px, 5.5vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.035em', margin: '4px 0 0' }}>
+              Escalo marcas personales con <span className="ss-shimmer">estrategias virales</span>.
             </h1>
-            <p style={{ margin: 0, fontSize: 'clamp(15px, 1.6vw, 18px)', lineHeight: 1.55, color: '#A9A6A0' }}>
+            <p className="animate-fadeUp" style={{ animationDelay: '.1s', margin: 0, fontSize: 'clamp(15px, 1.6vw, 18px)', lineHeight: 1.55, color: '#A9A6A0' }}>
               +2M de vistas generadas para mis clientes. Te enseño el sistema en los workshops o lo ejecutamos juntos como servicio.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 4 }}>
+            <div className="animate-fadeUp" style={{ animationDelay: '.2s', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginTop: 4 }}>
               {[
                 { value: '+2M', label: 'vistas' },
                 { value: '2 días', label: 'intensivos' },
                 { value: '100%', label: 'en vivo' },
               ].map(stat => (
-                <div key={stat.label} style={{ border: '1px solid #1C1C22', borderRadius: 14, padding: '12px 12px 11px', display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.03em' }}>{stat.value}</div>
+                <div key={stat.label} className="ss-stat" style={{ border: '1px solid #1C1C22', borderRadius: 14, padding: '12px 12px 11px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 20, letterSpacing: '-0.03em', color: TEXT }}>{stat.value}</div>
                   <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#75736D' }}>{stat.label}</div>
                 </div>
               ))}
@@ -119,16 +157,16 @@ export default function SantiagoEstrategiasPage() {
                 gap: 12,
               }}
             >
-              <a href={waLink(MSG_WORKSHOP)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}>
+              <a href={waLink(MSG_WORKSHOP)} target="_blank" rel="noopener noreferrer" className="ss-workshop-link" style={{ display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>
                     <span style={{ width: 7, height: 7, borderRadius: 999, background: BLUE_LIGHT, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
                     Enseñanza · Cupos limitados
                   </div>
-                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15 }}>{PRECIO}</div>
+                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15, color: TEXT }}>{PRECIO}</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em' }}>Workshops</div>
+                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em', color: TEXT }}>Workshops</div>
                   <div style={{ fontSize: 15, lineHeight: 1.55, color: '#B4B0A9' }}>
                     Dos días intensivos, en vivo, para aprender a crear contenido estratégico: de la idea a la publicación, con un sistema que puedes repetir cada semana.
                   </div>
@@ -138,9 +176,10 @@ export default function SantiagoEstrategiasPage() {
                     <span key={tag} style={{ fontSize: 12, color: '#C9C5BE', border: '1px solid #12263A', borderRadius: 999, padding: '6px 11px' }}>{tag}</span>
                   ))}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
-                  <span>RESERVA TU CUPO 🚀</span>
-                  <span>→</span>
+                <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+                  <Beam />
+                  <span style={{ position: 'relative' }}>RESERVA TU CUPO 🚀</span>
+                  <span style={{ position: 'relative' }}>→</span>
                 </div>
               </a>
 
@@ -166,7 +205,7 @@ export default function SantiagoEstrategiasPage() {
                   ].map(item => (
                     <div key={item.n} style={{ border: '1px solid #0F1E2C', borderRadius: 16, padding: '16px 18px', background: '#0C0A0A', display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 12, color: BLUE_LIGHT, letterSpacing: '0.04em' }}>{item.n}</div>
-                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>{item.title}</div>
+                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: TEXT }}>{item.title}</div>
                       <div style={{ fontSize: 13.5, lineHeight: 1.5, color: '#96938D' }}>{item.desc}</div>
                     </div>
                   ))}
@@ -212,11 +251,11 @@ export default function SantiagoEstrategiasPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="ss-servicio-card"
-              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT, transition: 'border-color .2s, transform .2s' }}
+              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}
             >
               <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>Servicio · Trabajo uno a uno</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em' }}>Servicios</div>
+                <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em', color: TEXT }}>Servicios</div>
                 <div style={{ fontSize: 15, lineHeight: 1.55, color: '#A9A6A0' }}>
                   Diseño y ejecuto la estrategia de contenido de tu marca personal: guiones, producción y sistematización para que publiques con dirección y crezcas mes a mes.
                 </div>
@@ -228,15 +267,16 @@ export default function SantiagoEstrategiasPage() {
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
-                <span>Consultar por WhatsApp</span>
-                <span>→</span>
+              <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+                <Beam />
+                <span style={{ position: 'relative' }}>Consultar por WhatsApp</span>
+                <span style={{ position: 'relative' }}>→</span>
               </div>
             </a>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '30px 0 0' }}>
-            <a href="https://www.instagram.com/santiago.estrategias/" target="_blank" rel="noopener noreferrer" style={{ fontSize: 14, color: '#8B8880' }}>
+            <a href="https://www.instagram.com/santiago.estrategias/" target="_blank" rel="noopener noreferrer" className="ss-link-plain" style={{ fontSize: 14, color: '#8B8880' }}>
               @santiago.estrategias
             </a>
             <div style={{ fontSize: 12, color: '#4E4D49' }}>Liderium · Estrategias virales</div>
