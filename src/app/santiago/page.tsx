@@ -55,7 +55,7 @@ export default function SantiagoEstrategiasPage() {
         <div style={{ width: '100%', maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 2px 6px' }}>
             <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 15, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
-              Santiago<span style={{ color: RED }}>.</span>estrategias
+              Santiago<span style={{ color: BLUE_LIGHT }}>.</span>estrategias
             </div>
           </div>
 
