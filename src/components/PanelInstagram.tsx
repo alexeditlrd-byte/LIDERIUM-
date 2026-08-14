@@ -32,7 +32,10 @@ interface QuickReply {
   id: string;
   texto: string;
   color?: string;
+  producto?: string;
 }
+
+const PRODUCTOS_QR = ['General', 'SKOOL', 'SERVICIO', 'INFOPRODUCTO TERRY', 'WORKSHOP'];
 
 const QR_COLORS: Record<string, { bg: string; text: string }> = {
   blanco: { bg: '#F4F6F8', text: '#15171C' },
@@ -108,11 +111,17 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
   const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [showQuickReplies, setShowQuickReplies] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [quickReplyProductFilter, setQuickReplyProductFilter] = useState('Todos');
   const [newQuickReply, setNewQuickReply] = useState('');
   const [newQuickReplyColor, setNewQuickReplyColor] = useState('blanco');
+  const [newQuickReplyProducto, setNewQuickReplyProducto] = useState('General');
   const [editingQuickReplyId, setEditingQuickReplyId] = useState<string | null>(null);
   const [editingQuickReplyText, setEditingQuickReplyText] = useState('');
   const [editingQuickReplyColor, setEditingQuickReplyColor] = useState('blanco');
+  const [editingQuickReplyProducto, setEditingQuickReplyProducto] = useState('General');
+  const quickRepliesFiltered = quickReplyProductFilter === 'Todos'
+    ? quickReplies
+    : quickReplies.filter(qr => (qr.producto ?? 'General') === quickReplyProductFilter);
 
   useEffect(() => {
     fetch('/api/instagram/quick-replies').then(r => r.json()).then(d => setQuickReplies(d.replies ?? [])).catch(() => {});
@@ -148,13 +157,14 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const res = await fetch('/api/instagram/quick-replies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ texto: newQuickReply.trim(), color: newQuickReplyColor }),
+      body: JSON.stringify({ texto: newQuickReply.trim(), color: newQuickReplyColor, producto: newQuickReplyProducto }),
     });
     const data = await res.json();
     if (!res.ok) { showToast(data.error ?? 'No se pudo guardar', false); return; }
     setQuickReplies(q => [...q, data.reply]);
     setNewQuickReply('');
     setNewQuickReplyColor('blanco');
+    setNewQuickReplyProducto('General');
   };
 
   const deleteQuickReply = async (id: string) => {
@@ -166,6 +176,7 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     setEditingQuickReplyId(qr.id);
     setEditingQuickReplyText(qr.texto);
     setEditingQuickReplyColor(qr.color ?? 'blanco');
+    setEditingQuickReplyProducto(qr.producto ?? 'General');
   };
 
   const saveEditQuickReply = async () => {
@@ -173,11 +184,12 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
     const id = editingQuickReplyId;
     const texto = editingQuickReplyText.trim();
     const color = editingQuickReplyColor;
+    const producto = editingQuickReplyProducto;
     try {
       const res = await fetch('/api/instagram/quick-replies', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, texto, color }),
+        body: JSON.stringify({ id, texto, color, producto }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -654,11 +666,16 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                 {showQuickReplies && (
                   <div className="absolute bottom-full left-6 mb-2 w-[320px] max-h-[280px] overflow-y-auto bg-white border border-[#E2E5EA] rounded-[14px] shadow-lg p-3 z-10">
                     <div className="text-[12px] font-bold text-[#5A6270] mb-2">Respuestas rápidas</div>
+                    <Dropdown value={quickReplyProductFilter} onChange={setQuickReplyProductFilter} options={['Todos', ...PRODUCTOS_QR]}
+                      className="w-full h-8 mb-2 bg-[#F4F6F8] border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" />
                     {quickReplies.length === 0 && (
                       <div className="text-[12.5px] text-[#9AA0A8] font-semibold mb-2">Todavía no agregas ninguna.</div>
                     )}
+                    {quickReplies.length > 0 && quickRepliesFiltered.length === 0 && (
+                      <div className="text-[12.5px] text-[#9AA0A8] font-semibold mb-2">Sin respuestas para este producto.</div>
+                    )}
                     <div className="flex flex-col gap-1.5 mb-3">
-                      {quickReplies.map(qr => editingQuickReplyId === qr.id ? (
+                      {quickRepliesFiltered.map(qr => editingQuickReplyId === qr.id ? (
                         <div key={qr.id} className="flex flex-col gap-1.5">
                           <textarea
                             value={editingQuickReplyText}
@@ -666,6 +683,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                             rows={2}
                             autoFocus
                             className="w-full px-3 py-2 border-[1.5px] border-steel rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] resize-none" />
+                          <Dropdown value={editingQuickReplyProducto} onChange={setEditingQuickReplyProducto} options={PRODUCTOS_QR}
+                            className="w-full h-8 mb-1.5 bg-white border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" />
                           <ColorSwatches value={editingQuickReplyColor} onChange={setEditingQuickReplyColor} />
                           <div className="flex gap-1.5">
                             <button onClick={saveEditQuickReply} disabled={!editingQuickReplyText.trim()}
@@ -703,6 +722,8 @@ export default function PanelInstagram({ showToast }: { showToast: (text: string
                         placeholder="Nueva respuesta rápida… (Enter para salto de línea)"
                         rows={3}
                         className="w-full px-3 py-2 border-[1.5px] border-[#E2E5EA] rounded-[9px] text-[12.5px] font-medium outline-none text-[#15171C] focus:border-steel transition resize-none" />
+                      <Dropdown value={newQuickReplyProducto} onChange={setNewQuickReplyProducto} options={PRODUCTOS_QR}
+                        className="w-full h-8 mt-1.5 bg-white border border-[#E2E5EA] rounded-[8px] px-2.5 text-[12px] font-bold text-[#3C434F] cursor-pointer outline-none" />
                       <div className="mt-1.5">
                         <ColorSwatches value={newQuickReplyColor} onChange={setNewQuickReplyColor} />
                       </div>
