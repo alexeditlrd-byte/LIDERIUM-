@@ -81,7 +81,7 @@ export default function SantiagoEstrategiasPage() {
             </div>
 
             <h1 style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(32px, 5.5vw, 52px)', lineHeight: 1.02, letterSpacing: '-0.035em', margin: '4px 0 0' }}>
-              Escalo marcas personales con <span style={{ color: RED }}>estrategias virales</span>.
+              Escalo marcas personales con <span style={{ color: BLUE_LIGHT }}>estrategias virales</span>.
             </h1>
             <p style={{ margin: 0, fontSize: 'clamp(15px, 1.6vw, 18px)', lineHeight: 1.55, color: '#A9A6A0' }}>
               +2M de vistas generadas para mis clientes. Te enseño el sistema en los workshops o lo ejecutamos juntos como servicio.
