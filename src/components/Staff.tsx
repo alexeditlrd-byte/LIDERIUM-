@@ -87,7 +87,8 @@ const allNavItems: { id: StaffTab; label: string; founderOnly?: boolean }[] = [
   { id: 'finanzas', label: 'Finanzas', founderOnly: true },
   { id: 'calendario', label: 'Calendario' },
   { id: 'instagram', label: 'Instagram de Santiago' },
-  { id: 'whatsapp', label: 'WhatsApp' },
+  // WhatsApp oculto del menú mientras se vuelve a la app normal (no Cloud API).
+  // { id: 'whatsapp', label: 'WhatsApp' },
 ];
 
 const titles: Record<StaffTab, string> = {
