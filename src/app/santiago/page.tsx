@@ -18,6 +18,8 @@ function waLink(text: string) {
 }
 
 const RED = '#FF4536';
+const BLUE = '#2E6CA0';
+const BLUE_LIGHT = '#5FA0DA';
 const BG = '#08080A';
 const TEXT = '#F4F1EA';
 
@@ -32,14 +34,16 @@ export default function SantiagoEstrategiasPage() {
         .ss-page a:hover { color: ${RED}; }
         .ss-page ::selection { background: ${RED}; color: ${BG}; }
         @keyframes ssPulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
-        .ss-servicio-card:hover { border-color: #3A3A44; transform: translateY(-2px); }
+        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-2px); }
         .ss-toggle:hover { color: ${RED}; }
       `}</style>
 
       <div
         className={`ss-page ${archivo.variable} ${instrumentSans.variable}`}
         style={{
-          background: BG,
+          background: `radial-gradient(680px circle at 12% -5%, rgba(46,108,160,0.20), transparent 60%),
+            radial-gradient(680px circle at 92% 105%, rgba(255,69,54,0.16), transparent 60%),
+            ${BG}`,
           minHeight: '100vh',
           fontFamily: 'var(--font-instrument-sans), system-ui, sans-serif',
           color: TEXT,
@@ -208,9 +212,9 @@ export default function SantiagoEstrategiasPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="ss-servicio-card"
-              style={{ border: '1px solid #1C1C22', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: '#0D0D11', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT, transition: 'border-color .2s, transform .2s' }}
+              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT, transition: 'border-color .2s, transform .2s' }}
             >
-              <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: '#75736D' }}>Servicio · Trabajo uno a uno</div>
+              <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>Servicio · Trabajo uno a uno</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em' }}>Servicios</div>
                 <div style={{ fontSize: 15, lineHeight: 1.55, color: '#A9A6A0' }}>
@@ -220,11 +224,11 @@ export default function SantiagoEstrategiasPage() {
               <div style={{ display: 'grid', gap: 8 }}>
                 {['Estrategia y posicionamiento de marca', 'Guionización y contenido viral', 'Producción y edición mensual'].map(item => (
                   <div key={item} style={{ display: 'flex', gap: 10, fontSize: 14, color: '#C9C5BE' }}>
-                    <span style={{ color: RED }}>—</span>{item}
+                    <span style={{ color: BLUE_LIGHT }}>—</span>{item}
                   </div>
                 ))}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #2E2E37', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
                 <span>Consultar por WhatsApp</span>
                 <span>→</span>
               </div>
