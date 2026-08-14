@@ -38,6 +38,16 @@ function Beam() {
 export default function SantiagoEstrategiasPage() {
   const [open, setOpen] = useState(false);
   const [openDet, setOpenDet] = useState(false);
+  // Paralaje sutil del fondo según la posición del mouse — profundidad extra
+  // en desktop; en móvil simplemente se queda en (0,0), sin efecto negativo.
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const onMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTilt({
+      x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      y: ((e.clientY - rect.top) / rect.height) * 2 - 1,
+    });
+  };
 
   return (
     <>
@@ -56,8 +66,8 @@ export default function SantiagoEstrategiasPage() {
           animation: ssShimmer 5s linear infinite;
         }
         .ss-link-plain:hover { color: ${RED}; }
-        .ss-servicio-card { transition: border-color .2s, transform .2s; }
-        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-3px); }
+        .ss-servicio-card { transition: border-color .2s, transform .2s, box-shadow .2s; }
+        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-3px); box-shadow: 0 40px 80px -30px rgba(46,108,160,.5); }
         .ss-workshop-link { transition: transform .2s; display: block; }
         .ss-workshop-link:hover { transform: translateY(-3px); }
         .ss-toggle-blue { transition: color .15s; }
@@ -71,6 +81,7 @@ export default function SantiagoEstrategiasPage() {
 
       <div
         className={`ss-page ${archivo.variable} ${instrumentSans.variable}`}
+        onMouseMove={onMouseMove}
         style={{
           background: BG,
           minHeight: '100vh',
@@ -83,12 +94,31 @@ export default function SantiagoEstrategiasPage() {
           padding: '0 16px 64px',
         }}
       >
-        {/* Blobs de fondo animados — mismo lenguaje visual que Landing.tsx (auroraA/C) */}
-        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        {/* Blobs + grilla de fondo, con paralaje — mismo lenguaje visual que Landing.tsx */}
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: -30,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            transform: `translate3d(${tilt.x * 16}px, ${tilt.y * 16}px, 0)`,
+            transition: 'transform .35s ease-out',
+          }}
+        >
           <div className="absolute rounded-full blur-[90px] animate-auroraA" style={{ width: 520, height: 520, left: -140, top: -140, background: `radial-gradient(circle, rgba(46,108,160,.32), transparent 70%)` }} />
           <div className="absolute rounded-full blur-[100px] animate-auroraC" style={{ width: 480, height: 480, right: -150, bottom: -120, background: `radial-gradient(circle, rgba(255,69,54,.24), transparent 70%)` }} />
           <div className="absolute rounded-full blur-[110px] animate-auroraB" style={{ width: 420, height: 420, right: '18%', top: -180, background: `radial-gradient(circle, rgba(46,108,160,.14), transparent 70%)` }} />
+          <div className="absolute inset-0 opacity-60 animate-scanGrid" style={{
+            backgroundImage: 'linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px)',
+            backgroundSize: '52px 52px',
+            maskImage: 'radial-gradient(120% 70% at 50% 0%, #000 30%, transparent 78%)',
+            WebkitMaskImage: 'radial-gradient(120% 70% at 50% 0%, #000 30%, transparent 78%)',
+          }} />
         </div>
+
+        {/* Viñeta — oscurece bordes para dar profundidad y centrar la mirada */}
+        <div aria-hidden="true" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', background: 'radial-gradient(120% 85% at 50% 15%, transparent 55%, rgba(0,0,0,.5) 100%)' }} />
 
         <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 2px 6px' }}>
@@ -103,6 +133,7 @@ export default function SantiagoEstrategiasPage() {
               borderRadius: 22,
               padding: 'clamp(22px, 3vw, 40px) clamp(20px, 3vw, 40px)',
               background: 'linear-gradient(180deg, #101014 0%, #0A0A0D 100%)',
+              boxShadow: '0 40px 80px -40px rgba(0,0,0,.7)',
               display: 'flex',
               flexDirection: 'column',
               gap: 18,
@@ -152,6 +183,7 @@ export default function SantiagoEstrategiasPage() {
                 borderRadius: 22,
                 padding: 'clamp(20px, 2.4vw, 30px)',
                 background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)',
+                boxShadow: '0 30px 60px -30px rgba(46,108,160,.35)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 12,
@@ -251,7 +283,7 @@ export default function SantiagoEstrategiasPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="ss-servicio-card"
-              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}
+              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', boxShadow: '0 30px 60px -30px rgba(46,108,160,.35)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}
             >
               <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>Servicio · Trabajo uno a uno</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
