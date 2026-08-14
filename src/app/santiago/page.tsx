@@ -35,7 +35,7 @@ export default function SantiagoEstrategiasPage() {
         .ss-page ::selection { background: ${RED}; color: ${BG}; }
         @keyframes ssPulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
         .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-2px); }
-        .ss-toggle:hover { color: ${RED}; }
+        .ss-toggle-blue:hover { color: ${BLUE_LIGHT}; }
       `}</style>
 
       <div
@@ -110,10 +110,10 @@ export default function SantiagoEstrategiasPage() {
             {/* Workshop */}
             <div
               style={{
-                border: '1px solid #2A1512',
+                border: '1px solid #12263A',
                 borderRadius: 22,
                 padding: 'clamp(20px, 2.4vw, 30px)',
-                background: 'linear-gradient(160deg, #1A0D0B 0%, #0C0A0A 70%)',
+                background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 12,
@@ -121,8 +121,8 @@ export default function SantiagoEstrategiasPage() {
             >
               <a href={waLink(MSG_WORKSHOP)} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 999, background: RED, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: BLUE_LIGHT, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
                     Enseñanza · Cupos limitados
                   </div>
                   <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15 }}>{PRECIO}</div>
@@ -135,22 +135,22 @@ export default function SantiagoEstrategiasPage() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {['22 y 23 de agosto', 'Online vía Zoom', '2 sesiones de 2h'].map(tag => (
-                    <span key={tag} style={{ fontSize: 12, color: '#C9C5BE', border: '1px solid #2A1512', borderRadius: 999, padding: '6px 11px' }}>{tag}</span>
+                    <span key={tag} style={{ fontSize: 12, color: '#C9C5BE', border: '1px solid #12263A', borderRadius: 999, padding: '6px 11px' }}>{tag}</span>
                   ))}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: RED, color: '#0B0605', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
                   <span>RESERVA TU CUPO 🚀</span>
                   <span>→</span>
                 </div>
               </a>
 
               <div
-                className="ss-toggle"
+                className="ss-toggle-blue"
                 onClick={() => setOpen(s => !s)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #2A1512', marginTop: 4, padding: '16px 2px 2px' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #12263A', marginTop: 4, padding: '16px 2px 2px' }}
               >
                 <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#B4B0A9', fontWeight: 600 }}>¿Qué aprenderás?</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: RED, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: BLUE_LIGHT, fontWeight: 600 }}>
                   {open ? 'Ver menos' : 'Ver más'}
                   <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 15 }}>{open ? '−' : '+'}</span>
                 </span>
@@ -164,8 +164,8 @@ export default function SantiagoEstrategiasPage() {
                     { n: '03', title: 'Producción de contenido', desc: 'Presencia en cámara, manual de grabación, edición en CapCut y adaptación a cada canal.' },
                     { n: '04', title: 'Sistematización + IA', desc: 'IA aplicada, reutilización de contenido y constancia sin depender de la inspiración.' },
                   ].map(item => (
-                    <div key={item.n} style={{ border: '1px solid #241310', borderRadius: 16, padding: '16px 18px', background: '#0C0A0A', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 12, color: RED, letterSpacing: '0.04em' }}>{item.n}</div>
+                    <div key={item.n} style={{ border: '1px solid #0F1E2C', borderRadius: 16, padding: '16px 18px', background: '#0C0A0A', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 12, color: BLUE_LIGHT, letterSpacing: '0.04em' }}>{item.n}</div>
                       <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em' }}>{item.title}</div>
                       <div style={{ fontSize: 13.5, lineHeight: 1.5, color: '#96938D' }}>{item.desc}</div>
                     </div>
@@ -174,12 +174,12 @@ export default function SantiagoEstrategiasPage() {
               )}
 
               <div
-                className="ss-toggle"
+                className="ss-toggle-blue"
                 onClick={() => setOpenDet(s => !s)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #2A1512', marginTop: 4, padding: '16px 2px 2px' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #12263A', marginTop: 4, padding: '16px 2px 2px' }}
               >
                 <span style={{ fontSize: 11.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#B4B0A9', fontWeight: 600 }}>Más detalles</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: RED, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: BLUE_LIGHT, fontWeight: 600 }}>
                   {openDet ? 'Ver menos' : 'Ver más'}
                   <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 15 }}>{openDet ? '−' : '+'}</span>
                 </span>
@@ -193,14 +193,14 @@ export default function SantiagoEstrategiasPage() {
                     { label: 'Modalidad', value: 'Online en vivo · Zoom' },
                     { label: 'Incluye', value: 'Grabaciones + constancia' },
                   ].map(row => (
-                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid #241310', paddingBottom: 11 }}>
+                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid #0F1E2C', paddingBottom: 11 }}>
                       <span style={{ fontSize: 14, color: '#8B8880' }}>{row.label}</span>
                       <span style={{ fontSize: 14, fontWeight: 600, textAlign: 'right' }}>{row.value}</span>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                     <span style={{ fontSize: 14, color: '#8B8880' }}>Inversión</span>
-                    <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 16, fontWeight: 800, color: RED }}>{PRECIO}</span>
+                    <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 16, fontWeight: 800, color: BLUE_LIGHT }}>{PRECIO}</span>
                   </div>
                 </div>
               )}
