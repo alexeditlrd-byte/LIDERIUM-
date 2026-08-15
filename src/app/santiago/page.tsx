@@ -189,12 +189,9 @@ export default function SantiagoEstrategiasPage() {
               }}
             >
               <a href={waLink(MSG_WORKSHOP)} target="_blank" rel="noopener noreferrer" className="ss-workshop-link" style={{ display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 999, background: RED, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
-                    Enseñanza · Cupos limitados
-                  </div>
-                  <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15, color: TEXT }}>{PRECIO}</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED }}>
+                  <span style={{ width: 7, height: 7, borderRadius: 999, background: RED, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
+                  Enseñanza · Cupos limitados
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em', color: TEXT }}>Workshops</div>
