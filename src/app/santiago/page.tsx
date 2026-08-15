@@ -18,8 +18,7 @@ function waLink(text: string) {
 }
 
 const RED = '#FF4536';
-const BLUE = '#2E6CA0';
-const BLUE_LIGHT = '#5FA0DA';
+const RED_LIGHT = '#FF8478';
 const BG = '#08080A';
 const TEXT = '#F4F1EA';
 
@@ -57,7 +56,7 @@ export default function SantiagoEstrategiasPage() {
         @keyframes ssPulseDot { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.8); } }
         @keyframes ssShimmer { to { background-position: 200% center; } }
         .ss-shimmer {
-          background: linear-gradient(90deg, ${BLUE} 0%, ${BLUE_LIGHT} 25%, #BFE0FF 50%, ${BLUE_LIGHT} 75%, ${BLUE} 100%);
+          background: linear-gradient(90deg, ${RED} 0%, ${RED_LIGHT} 25%, #FFC9C2 50%, ${RED_LIGHT} 75%, ${RED} 100%);
           background-size: 220% auto;
           background-position: 0% center;
           -webkit-background-clip: text;
@@ -67,16 +66,16 @@ export default function SantiagoEstrategiasPage() {
         }
         .ss-link-plain:hover { color: ${RED}; }
         .ss-servicio-card { transition: border-color .2s, transform .2s, box-shadow .2s; }
-        .ss-servicio-card:hover { border-color: ${BLUE_LIGHT}; transform: translateY(-3px); box-shadow: 0 40px 80px -30px rgba(46,108,160,.5); }
+        .ss-servicio-card:hover { border-color: ${RED_LIGHT}; transform: translateY(-3px); box-shadow: 0 40px 80px -30px rgba(255,69,54,.5); }
         .ss-workshop-link { transition: transform .2s; display: block; }
         .ss-workshop-link:hover { transform: translateY(-3px); }
-        .ss-toggle-blue { transition: color .15s; }
-        .ss-toggle-blue:hover { color: ${BLUE_LIGHT}; }
+        .ss-toggle-accent { transition: color .15s; }
+        .ss-toggle-accent:hover { color: ${RED_LIGHT}; }
         .ss-cta { position: relative; overflow: hidden; transition: transform .15s ease, box-shadow .15s ease; }
-        .ss-cta:hover { transform: scale(1.015); box-shadow: 0 8px 24px -8px rgba(46,108,160,.55); }
+        .ss-cta:hover { transform: scale(1.015); box-shadow: 0 8px 24px -8px rgba(255,69,54,.55); }
         .ss-stat { transition: transform .18s ease, border-color .18s ease; }
-        .ss-stat:hover { transform: translateY(-3px); border-color: ${BLUE}; }
-        .ss-avatar-ring { box-shadow: 0 0 0 5px rgba(46,108,160,.14), 0 0 26px 4px rgba(46,108,160,.28); }
+        .ss-stat:hover { transform: translateY(-3px); border-color: ${RED}; }
+        .ss-avatar-ring { box-shadow: 0 0 0 5px rgba(255,69,54,.14), 0 0 26px 4px rgba(255,69,54,.28); }
       `}</style>
 
       <div
@@ -106,9 +105,9 @@ export default function SantiagoEstrategiasPage() {
             transition: 'transform .35s ease-out',
           }}
         >
-          <div className="absolute rounded-full blur-[90px] animate-auroraA" style={{ width: 520, height: 520, left: -140, top: -140, background: `radial-gradient(circle, rgba(46,108,160,.32), transparent 70%)` }} />
-          <div className="absolute rounded-full blur-[100px] animate-auroraC" style={{ width: 480, height: 480, right: -150, bottom: -120, background: `radial-gradient(circle, rgba(255,69,54,.24), transparent 70%)` }} />
-          <div className="absolute rounded-full blur-[110px] animate-auroraB" style={{ width: 420, height: 420, right: '18%', top: -180, background: `radial-gradient(circle, rgba(46,108,160,.14), transparent 70%)` }} />
+          <div className="absolute rounded-full blur-[90px] animate-auroraA" style={{ width: 520, height: 520, left: -140, top: -140, background: `radial-gradient(circle, rgba(255,69,54,.30), transparent 70%)` }} />
+          <div className="absolute rounded-full blur-[100px] animate-auroraC" style={{ width: 480, height: 480, right: -150, bottom: -120, background: `radial-gradient(circle, rgba(255,69,54,.26), transparent 70%)` }} />
+          <div className="absolute rounded-full blur-[110px] animate-auroraB" style={{ width: 420, height: 420, right: '18%', top: -180, background: `radial-gradient(circle, rgba(255,120,100,.14), transparent 70%)` }} />
           <div className="absolute inset-0 opacity-60 animate-scanGrid" style={{
             backgroundImage: 'linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px)',
             backgroundSize: '52px 52px',
@@ -123,7 +122,7 @@ export default function SantiagoEstrategiasPage() {
         <div style={{ position: 'relative', zIndex: 10, width: '100%', maxWidth: 1040, display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '26px 2px 6px' }}>
             <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 15, letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
-              Santiago<span style={{ color: BLUE_LIGHT }}>.</span>estrategias
+              Santiago<span style={{ color: RED }}>.</span>estrategias
             </div>
           </div>
 
@@ -179,11 +178,11 @@ export default function SantiagoEstrategiasPage() {
             {/* Workshop */}
             <div
               style={{
-                border: '1px solid #12263A',
+                border: '1px solid #2A1512',
                 borderRadius: 22,
                 padding: 'clamp(20px, 2.4vw, 30px)',
-                background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)',
-                boxShadow: '0 30px 60px -30px rgba(46,108,160,.35)',
+                background: 'linear-gradient(160deg, #1A0D0B 0%, #0C0A0A 70%)',
+                boxShadow: '0 30px 60px -30px rgba(255,69,54,.35)',
                 display: 'flex',
                 flexDirection: 'column',
                 gap: 12,
@@ -191,8 +190,8 @@ export default function SantiagoEstrategiasPage() {
             >
               <a href={waLink(MSG_WORKSHOP)} target="_blank" rel="noopener noreferrer" className="ss-workshop-link" style={{ display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>
-                    <span style={{ width: 7, height: 7, borderRadius: 999, background: BLUE_LIGHT, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED }}>
+                    <span style={{ width: 7, height: 7, borderRadius: 999, background: RED, animation: 'ssPulseDot 1.8s ease-in-out infinite', display: 'inline-block' }} />
                     Enseñanza · Cupos limitados
                   </div>
                   <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15, color: TEXT }}>{PRECIO}</div>
@@ -205,10 +204,10 @@ export default function SantiagoEstrategiasPage() {
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
                   {['22 y 23 de agosto', 'Online vía Zoom', '2 sesiones de 2h'].map(tag => (
-                    <span key={tag} style={{ fontSize: 12, color: '#C9C5BE', border: '1px solid #12263A', borderRadius: 999, padding: '6px 11px' }}>{tag}</span>
+                    <span key={tag} style={{ fontSize: 12, color: '#C9C5BE', border: '1px solid #2A1512', borderRadius: 999, padding: '6px 11px' }}>{tag}</span>
                   ))}
                 </div>
-                <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+                <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: RED, color: '#0B0605', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
                   <Beam />
                   <span style={{ position: 'relative' }}>RESERVA TU CUPO 🚀</span>
                   <span style={{ position: 'relative' }}>→</span>
@@ -216,12 +215,12 @@ export default function SantiagoEstrategiasPage() {
               </a>
 
               <div
-                className="ss-toggle-blue"
+                className="ss-toggle-accent"
                 onClick={() => setOpen(s => !s)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #12263A', marginTop: 4, padding: '16px 2px 2px' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #2A1512', marginTop: 4, padding: '16px 2px 2px' }}
               >
                 <span style={{ fontSize: 13, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#B4B0A9', fontWeight: 600 }}>¿Qué aprenderás?</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: BLUE_LIGHT, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: RED, fontWeight: 600 }}>
                   {open ? 'Ver menos' : 'Ver más'}
                   <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 15 }}>{open ? '−' : '+'}</span>
                 </span>
@@ -235,8 +234,8 @@ export default function SantiagoEstrategiasPage() {
                     { n: '03', title: 'Producción de contenido', desc: 'Presencia en cámara, manual de grabación, edición en CapCut y adaptación a cada canal.' },
                     { n: '04', title: 'Sistematización + IA', desc: 'IA aplicada, reutilización de contenido y constancia sin depender de la inspiración.' },
                   ].map(item => (
-                    <div key={item.n} style={{ border: '1px solid #0F1E2C', borderRadius: 16, padding: '16px 18px', background: '#0C0A0A', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 12, color: BLUE_LIGHT, letterSpacing: '0.04em' }}>{item.n}</div>
+                    <div key={item.n} style={{ border: '1px solid #241310', borderRadius: 16, padding: '16px 18px', background: '#0C0A0A', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 12, color: RED, letterSpacing: '0.04em' }}>{item.n}</div>
                       <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 17, letterSpacing: '-0.02em', color: TEXT }}>{item.title}</div>
                       <div style={{ fontSize: 13.5, lineHeight: 1.5, color: '#96938D' }}>{item.desc}</div>
                     </div>
@@ -245,12 +244,12 @@ export default function SantiagoEstrategiasPage() {
               )}
 
               <div
-                className="ss-toggle-blue"
+                className="ss-toggle-accent"
                 onClick={() => setOpenDet(s => !s)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #12263A', marginTop: 4, padding: '16px 2px 2px' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, cursor: 'pointer', borderTop: '1px solid #2A1512', marginTop: 4, padding: '16px 2px 2px' }}
               >
                 <span style={{ fontSize: 11.5, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#B4B0A9', fontWeight: 600 }}>Más detalles</span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: BLUE_LIGHT, fontWeight: 600 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: RED, fontWeight: 600 }}>
                   {openDet ? 'Ver menos' : 'Ver más'}
                   <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 15 }}>{openDet ? '−' : '+'}</span>
                 </span>
@@ -264,14 +263,14 @@ export default function SantiagoEstrategiasPage() {
                     { label: 'Modalidad', value: 'Online en vivo · Zoom' },
                     { label: 'Incluye', value: 'Grabaciones + constancia' },
                   ].map(row => (
-                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid #0F1E2C', paddingBottom: 11 }}>
+                    <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, borderBottom: '1px solid #241310', paddingBottom: 11 }}>
                       <span style={{ fontSize: 14, color: '#8B8880' }}>{row.label}</span>
                       <span style={{ fontSize: 14, fontWeight: 600, textAlign: 'right' }}>{row.value}</span>
                     </div>
                   ))}
                   <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
                     <span style={{ fontSize: 14, color: '#8B8880' }}>Inversión</span>
-                    <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 16, fontWeight: 800, color: BLUE_LIGHT }}>{PRECIO}</span>
+                    <span style={{ fontFamily: "var(--font-archivo), sans-serif", fontSize: 16, fontWeight: 800, color: RED }}>{PRECIO}</span>
                   </div>
                 </div>
               )}
@@ -283,9 +282,9 @@ export default function SantiagoEstrategiasPage() {
               target="_blank"
               rel="noopener noreferrer"
               className="ss-servicio-card"
-              style={{ border: '1px solid #12263A', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #0B1620 0%, #0A0A0D 70%)', boxShadow: '0 30px 60px -30px rgba(46,108,160,.35)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}
+              style={{ border: '1px solid #2A1512', borderRadius: 22, padding: 'clamp(20px, 2.4vw, 30px)', background: 'linear-gradient(160deg, #1A0D0B 0%, #0C0A0A 70%)', boxShadow: '0 30px 60px -30px rgba(255,69,54,.35)', display: 'flex', flexDirection: 'column', gap: 16, color: TEXT }}
             >
-              <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: BLUE_LIGHT }}>Servicio · Trabajo uno a uno</div>
+              <div style={{ fontSize: 11.5, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED }}>Servicio · Trabajo uno a uno</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontFamily: "var(--font-archivo), sans-serif", fontWeight: 900, fontSize: 'clamp(28px, 3.4vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em', color: TEXT }}>Servicios</div>
                 <div style={{ fontSize: 15, lineHeight: 1.55, color: '#A9A6A0' }}>
@@ -295,11 +294,11 @@ export default function SantiagoEstrategiasPage() {
               <div style={{ display: 'grid', gap: 8 }}>
                 {['Estrategia y posicionamiento de marca', 'Guionización y contenido viral', 'Producción y edición mensual'].map(item => (
                   <div key={item} style={{ display: 'flex', gap: 10, fontSize: 14, color: '#C9C5BE' }}>
-                    <span style={{ color: BLUE_LIGHT }}>—</span>{item}
+                    <span style={{ color: RED }}>—</span>{item}
                   </div>
                 ))}
               </div>
-              <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: BLUE, color: '#F4F1EA', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
+              <div className="ss-cta" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: RED, color: '#0B0605', borderRadius: 14, padding: '15px 18px', fontFamily: "var(--font-archivo), sans-serif", fontWeight: 800, fontSize: 15.5, marginTop: 2 }}>
                 <Beam />
                 <span style={{ position: 'relative' }}>Consultar por WhatsApp</span>
                 <span style={{ position: 'relative' }}>→</span>
