@@ -259,7 +259,7 @@ export default function SantiagoEstrategiasPage() {
                 <div style={{ display: 'grid', gap: 12 }}>
                   {[
                     { label: 'Fechas', value: '22 y 23 de agosto, 2026' },
-                    { label: 'Horario', value: <>Día 1: 10:00–12:00<br />Día 2: 9:00–11:00</> },
+                    { label: 'Horario', value: <>Día 1: 10:00–12:00 am<br />Día 2: 9:00–11:00 am</> },
                     { label: 'Modalidad', value: 'Online en vivo · Zoom' },
                     { label: 'Incluye', value: 'Grabaciones + constancia' },
                   ].map(row => (
